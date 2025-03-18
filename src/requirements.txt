@@ -1,0 +1,10 @@
+colorlog
+fastapi
+folium
+haversine
+numpy
+openpyxl
+pandas
+tabulate
+uvicorn
+
