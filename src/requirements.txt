@@ -1,10 +1,11 @@
+argparse
 colorlog
-fastapi
 folium
-haversine
+loguru
 numpy
 openpyxl
 pandas
 tabulate
+fastapi
 uvicorn
-
+haversine

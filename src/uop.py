@@ -1,20 +1,69 @@
+##
+## UOP v1.1
+##
+## Change Log:
+##
+## v1.1:
+## - Change logger to loguru ( no impacts )
+## - Added 
+## mem_min_value_cnf_deployed = 0.10
+## mem_max_value_cnf_deployed = 0.30
+## mem_min_value_cnf_not_deployed = 0.70
+## mem_max_value_cnf_not_deployed = 0.85
+## disk_min_value_cnf_deployed = 0.10
+## disk_max_value_cnf_deployed = 0.40
+## disk_min_value_cnf_not_deployed = 0.70
+## disk_max_value_cnf_not_deployed = 0.85
+## to allow consistent values for Mem and Disk ( similar way we do with CPU )
+## 
+## - Latency: change from miliseconds to microseconds
+## 
+## - Latency: 3.4μs for radio and 5μs for fiber
+##
+## 
+## Installation:
+##  
+## 1) Virtual Environment
+## Create a virtual environment
+## python3 -m venv uopc_virtual_env
+## 
+## 2) Activate your virtual environment
+## Linux/Mac
+## source uopc_virtual_env/bin/activate
+## Example:
+## 
+## $ source uopc_virtual_env/bin/activate
+## (uopc_virtual_env) $
+## Deactivate virtual environment
+## deactivate
+## Example:
+## 
+## (uopc_virtual_env) $ deactivate
+## 
+## 3) Install dependencies
+## Install dependencies from requirements.txt
+## pip install -r requirements.txt
+## 
+## 4) Run python uop.py
+## python uop.py
 
-# uvicorn 03-get_views_info_v6-edge_and_faredge_width10-shortest_v5:app --reload
 
 
 ## Libraries ##################################################################
 
 # Standard Library
+import argparse
 import colorlog
+import folium
 import logging
+import loguru
 import os
 import random
 import sqlite3
+import sys
 import urllib.parse 
-import folium
 from datetime import datetime
 from pathlib import Path
-import argparse
 
 # Third-Party Libraries
 from fastapi import FastAPI, HTTPException
@@ -37,23 +86,24 @@ import uvicorn
 app = FastAPI()
 
 
+
 ## Arguments ##################################################################
 # Define command-line arguments
-parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.0")
+parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.1")
 parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
 parser.add_argument("--port", type=int, default=8181, help="Port number")
 parser.add_argument("--reload", action="store_true", default=True, help="Enable auto-reload")
 #parser.add_argument("--log-level", type=str, default="debug", help="Logging level")
-parser.add_argument("--log-level", type=str, default="info", choices=["debug", "info", "warning", "error", "critical"], help="Logging level")
+parser.add_argument("--log-level", type=str, default="debug", choices=["debug", "info", "warning", "error", "critical"], help="Logging level")
 
 # Parse arguments
 args = parser.parse_args()
 
 
+
 ## CONSTANTS ##################################################################
 
 # Path and database file name 
-#DATABASE_DIR = "/mnt/c/Users/rodrirau/Desktop/yaseen-phase_II/src/database/"  # Path to the directory
 DATABASE_DIR = "./database/"  # Path to the directory
 DATABASE_NAME = "network.db"  # Name of the database file
 
@@ -64,6 +114,7 @@ DATABASE_PATH = os.path.join(DATABASE_DIR, DATABASE_NAME)
 # Base directory where the files are generated
 current_path = os.getcwd()
 BASE_DIR = os.path.join(os.getcwd(), 'output')  # Apunta a la carpeta 'output' en el directorio actual
+
 
 
 ## Loggin #####################################################################
@@ -97,41 +148,15 @@ file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(log_formatter)
 
-# File handler (writes logs to a file)
-file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
-file_handler.setFormatter(file_formatter)
-
 # Configure logger
 # Convert log level string to logging module constant
-LOG_LEVEL = getattr(logging, args.log_level.upper(), logging.DEBUG)
+MY_LOG_LEVEL = getattr(logging, args.log_level.upper(), logging.DEBUG)
 
 logger = logging.getLogger()
-logger.setLevel(LOG_LEVEL) 
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(MY_LOG_LEVEL) 
 logger.addHandler(console_handler)
-logger.addHandler(file_handler)
 
-## Log handler
-#handler = logging.StreamHandler()
-#handler.setFormatter(log_formatter)
-#
-## Log configuration 
-#logger = logging.getLogger()
-#logger.setLevel(logging.DEBUG)
-#logger.addHandler(handler)
 
-    
-## Some logs
-#logger.info(f"--------------------")
-#logger.info(f"-  UOP v1.0       --")
-#logger.info(f"--------------------")
-
-# Pruebas de log
-#logger.debug("Este es un mensaje de debug")
-#logger.info("Este es un mensaje informativo")
-#logger.warning("Este es un mensaje de advertencia")
-#logger.error("Este es un mensaje de error")
-#logger.critical("Este es un mensaje crítico")
 
 
 ## Database ###################################################################
@@ -158,6 +183,7 @@ sheet_names = {
 }
 
 
+
 ## Excel output  ##############################################################
 
 # Output directory
@@ -167,6 +193,7 @@ os.makedirs(output_excel, exist_ok=True)
 # HTML output directory
 output_html = "html"  
 os.makedirs(output_html, exist_ok=True)
+
 
 
 ## Map info ###################################################################
@@ -184,10 +211,16 @@ my_html_output2_name = 'uopv1-map'
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 my_html_output2 = os.path.join(output_html, f"{my_html_output2_name}_{timestamp}.html")
 
+all_data_html_1 = ""
+all_data_html_2 = ""
+all_data_html_3 = ""
+all_data_html_4 = ""
+
 
 ## Some variables #############################################################
 my_closest_edge_is = ()
 my_closest_fard_edge_is = ()
+
 
 #############################################
 ## To use or to not use fixed values in: CPU, Mem, Disk, IOPS, BW
@@ -209,6 +242,10 @@ mem_min_value = 10.0
 mem_max_value = 95.0
 mem_min_thresold_value = 0.10
 mem_max_thresold_value = 0.70
+mem_min_value_cnf_deployed = 0.10
+mem_max_value_cnf_deployed = 0.30
+mem_min_value_cnf_not_deployed = 0.70
+mem_max_value_cnf_not_deployed = 0.85
 
 # Disk variables
 disk_min_value = 1
@@ -216,6 +253,10 @@ disk_max_value = 4
 disk_max_value2 = 4.000
 disk_min_thresold_value = 5.0
 disk_max_thresold_value = 75.0
+disk_min_value_cnf_deployed = 0.10
+disk_max_value_cnf_deployed = 0.40
+disk_min_value_cnf_not_deployed = 0.70
+disk_max_value_cnf_not_deployed = 0.85
 
 # IOPS (Input/Output write/read per second)
 #Range: 
@@ -232,8 +273,10 @@ bw_min_value = 1.00
 bw_max_value = 25.00
 
 # Latency ------------------
-latency_min_value = 0.00
-latency_max_value = 0.1
+#latency_min_value = 0.00
+#latency_max_value = 0.1
+latency_min_value = 0.0
+latency_max_value = 1000.0
 
 
 
@@ -342,30 +385,82 @@ distance_div = 100
 latency_div  = 100
 
 
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## | Aux Functions                                      | 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+def print_table(data, role_name):
+    """Print tables in tabular format"""
+    table_data = [[d[col] for col in headers] for d in data]
+
+    print(f"\nFinal Table for Role: {role_name} (Interleaved Scores + Total Score):")
+    print(tabulate.tabulate(table_data, headers=headers, tablefmt="grid"))
+
+
+def get_best_edge_server(data):
+    """Select best server in the list"""
+    # Initialization
+    best_server = None
+    
+    for server in data:
+        # Si no hay un servidor seleccionado o encontramos uno con mejor total_score o cpu_usage
+        if best_server is None or server['total_score'] > best_server['total_score'] or (server['total_score'] == best_server['total_score'] and server['cpu_usage'] > best_server['cpu_usage']):
+            best_server = server
+    
+    # Devolver el servidor con el mejor score
+    return [best_server]
+
+
 def get_random_value_in_db():
     """Random values for CNF, CPU, Mem, Disk, BW, IOPS."""
 
     # Connect to the SQLite database
-    logger.debug(f"Trying to connect to database ...")
+    loguru.logger.debug(f"Trying to connect to database ...")
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
-    logger.debug(f"Trying to connect to database ... ok")
+    loguru.logger.debug(f"Trying to connect to database ... ok")
 
     # Load the table into a Python list
     devices = []
-    cursor.execute("SELECT id, CNF, CPU, RamAva, RamTot, DiskAva, DiskTot, IOPS, BW, Role FROM Provisioned_Devices")
+
+#    cursor.execute("SELECT id, CNF, CPU, RamAva, RamTot, DiskAva, DiskTot, IOPS, BW, Role FROM Provisioned_Devices")
+
+    my_query = """
+    SELECT 
+        pd.Region, pd.Site, pd.ID AS "Device UUID", 
+        pd.Status, pd.Role, pd.CNF,  
+        pd.CPU AS "CPU Usage",
+        pd.RamAva, pd.RamTot,
+        pd.DiskAva, pd.DiskTot,
+        pd.IOPS, pd.BW AS "Bandwidth", pd.Manufacturer, pd.Platform, 
+        pd.Cluster, s.Location, s.ShortName, s.Type,
+        s.Latitude,
+        s.Longitude        
+    FROM Provisioned_Devices pd 
+    JOIN Sites s 
+        ON pd.Site = s.ID 
+    WHERE 
+        pd.Region = 'DFW' 
+        AND pd.Status = 'Active' 
+        AND (pd.ID LIKE '%_UPF' OR pd.ID LIKE '%_DU') 
+        AND (pd.Role = 'EdgeServer' OR pd.Role = 'FEServer');
+    """
+    cursor.execute(my_query)
+    
+
     for row in cursor.fetchall():
         devices.append({
-            "id": row[0], "CNF": row[1], "CPU": row[2], "RamAva": row[3], "RamTot": row[4],
-            "DiskAva": row[5], "DiskTot": row[6], "IOPS": row[7], "BW": row[8], "Role": row[9],
+            "id": row[2], "CNF": row[5], "CPU": row[6], "RamAva": row[7], "RamTot": row[8],
+            "DiskAva": row[9], "DiskTot": row[10], "IOPS": row[11], "BW": row[12], "Role": row[4],
             "cnf_value": None, "cpu_usage": None, "ramtot_value": None, "ramava_value": None,
-            "diskava_value": None, "iops_value": None, "bw_value": None, "disktot_value": 4
+            "diskava_value": None, "iops_value": None, "bw_value": None, "disktot_value": 4,
+            "region": row[0], "site": row[1], "uuid": row[2], "status": row[3], "manufacturer": row[13],
+            "platform": row[14], "cluster": row[15], "location": row[16], "shortname": row[17], 
+            "type": row[18], "long": row[19], "lat": row[20]
         })
 
-    logger.debug(f"Loaded {len(devices)} devices from the database.")
+    loguru.logger.debug(f"Loaded {len(devices)} devices from the database.")
 
     # First pass: Generate initial random values
     for device in devices:
@@ -382,24 +477,46 @@ def get_random_value_in_db():
         device["ramtot_value"] = 128 if role == 'FEServer' else random.choice([192, 256, 320])
 
         # Ram available
-        min_ramava = round(mem_min_thresold_value * device["ramtot_value"], 2)
-        max_ramava = round(mem_max_thresold_value * device["ramtot_value"], 2)
+#        min_ramava = round(mem_min_thresold_value * device["ramtot_value"], 2)
+#        max_ramava = round(mem_max_thresold_value * device["ramtot_value"], 2)
+
+        if device["cnf_value"] == '1':
+            min_ramava = round(mem_min_value_cnf_deployed * device["ramtot_value"], 2)
+            max_ramava = round(mem_max_value_cnf_deployed * device["ramtot_value"], 2)
+        else:
+            min_ramava = round(mem_min_value_cnf_not_deployed * device["ramtot_value"], 2)
+            max_ramava = round(mem_max_value_cnf_not_deployed * device["ramtot_value"], 2)
+    
+
         device["ramava_value"] = round(random.uniform(min_ramava, max_ramava), 2)
+       
 
         # Disk total
         device["disktot_value"] = disk_max_value
 
         # Disk available
-        min_diskava = round(disk_min_thresold_value * device["disktot_value"], 2)
-        max_diskava = round(disk_max_thresold_value * device["disktot_value"], 2)
-        device["diskava_value"] = round(random.uniform(disk_min_value, disk_max_value), 2)
+#        min_diskava = round(disk_min_thresold_value * device["disktot_value"], 2)
+#        max_diskava = round(disk_max_thresold_value * device["disktot_value"], 2)
+
+        if device["cnf_value"] == '1':
+            min_diskava = round(disk_min_value_cnf_deployed * device["disktot_value"], 2)  # 70% de 4 = 2.8
+            max_diskava = round(disk_max_value_cnf_deployed * device["disktot_value"], 2)  # 85% de 4 = 3.4
+        else:
+            min_diskava = round(disk_min_value_cnf_not_deployed * device["disktot_value"], 2)  # 10% de 4 = 0.4
+            max_diskava = round(disk_max_value_cnf_not_deployed * device["disktot_value"], 2)  # 40% de 4 = 1.6
+        
+
+#        device["diskava_value"] = round(random.uniform(disk_min_value, disk_max_value), 2)
+        device["diskava_value"] = round(random.uniform(min_diskava, max_diskava), 2)
+
 
         device["bw_value"] = round(random.uniform(bw_min_value, bw_max_value),2)
 
-    logger.debug(f"First pass completed: Random values generated.")
+
+    loguru.logger.debug(f"First pass completed: Random values generated.")
 
     # Sort devices by CNF and CPU usage
-    devices.sort(key=lambda d: (d["cnf_value"], d["cpu_usage"]))
+    devices.sort(key=lambda d: (d["Role"],d["cnf_value"], d["cpu_usage"], d["ramava_value"], d["diskava_value"]))
 
     # Generate unique decreasing IOPS values
     num_devices = len(devices)
@@ -408,7 +525,7 @@ def get_random_value_in_db():
     for i, device in enumerate(devices):
         device["iops_value"] = iops_values[i]
 
-    logger.debug(f"IOPS values assigned uniquely and in decreasing order.")
+    loguru.logger.debug(f"IOPS values assigned uniquely and in decreasing order.")
 
     # Ensure DiskAva does not exceed DiskTot
     for device in devices:
@@ -417,40 +534,678 @@ def get_random_value_in_db():
         if device["diskava_value"] > disk_max_value:
             device["diskava_value"] = disk_max_value2
 
-    logger.debug(f"Disk availability values validated.")
+    loguru.logger.debug(f"Disk availability values validated.")
 
-    # Display the generated values in tabular format
-    headers = ["ID", "CNF", "CPU", "RamTot", "RamAva", "DiskAva", "DiskTot", "IOPS", "BW", "Role"]
-    table_data = [[d["id"], d["cnf_value"], d["cpu_usage"], d["ramtot_value"], d["ramava_value"], d["diskava_value"], d["disktot_value"], d["iops_value"], d["bw_value"], d["Role"]] for d in devices]
-
-    debug_modee = 0
+    debug_modee = 1    
     if debug_modee == 1:
-        print(tabulate.tabulate(table_data, headers=headers, tablefmt="grid"))
+        headers = ["id", "cnf_value", "cpu_usage", "ramfree_value", "diskfree_value", "iops_value", "bw_value", "role"]
 
-    # Display a second sorted table
-    sorted_devices = sorted(devices, key=lambda d: (d["Role"], d["cnf_value"], d["cpu_usage"]))
+        table = []
+        
+        for device in [d for d in devices if '_CUUP' not in d['id'] or d['Role'] != 'CoreServer']:
 
-    debug_modee = 0
-    if debug_modee == 1:
-        print("\nSorted Table:")
-        print(tabulate.tabulate([[d["id"], d["cnf_value"], d["cpu_usage"], d["ramtot_value"], d["ramava_value"], d["diskava_value"], d["disktot_value"], d["iops_value"], d["bw_value"], d["Role"]] for d in sorted_devices], headers=headers, tablefmt="grid"))
+            my_ramfree_value = round((device['ramava_value']/device['ramtot_value'])*100,2)
+            my_diskfree_value = round((device['diskava_value']/device['disktot_value'])*100,2)
+
+            table.append([
+                device['id'],
+                device['cnf_value'],
+                device['cpu_usage'],
+                my_ramfree_value,
+                my_diskfree_value,
+                device['iops_value'],
+                device['bw_value'],
+                device['Role']
+            ])
+
+
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(tabulate.tabulate(table, headers=headers, tablefmt="grid"))
+
+        # Compute ramfree_value and diskfree_value
+        for device in devices:
+            device["ramfree_value"] = round((device["ramava_value"] / device["ramtot_value"]) * 100, 2)
+            device["diskfree_value"] = round((device["diskava_value"] / device["disktot_value"]) * 100, 2)
+
+
+        # Compute scoring
+        score_data = []
+        for device in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+
+            debug_modee = 0
+            if debug_modee == 1:
+                print(f"device_FEServer:{device}")
+                
+############cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
+
+            loguru.logger.debug(f"Calculating score for device {device['id']} with cpu_usage {device['cpu_usage']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["cpu_usage"] < other["cpu_usage"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the cpu_score by comparing each device's cpu_usage with others
+            #cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
+            cpu_score = corrected_num
+            
+            # Log the cpu_score result
+            loguru.logger.debug(f"Device {device['id']} - cpu_score calculated: {cpu_score}")
+
+
+#############ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with ramfree_value {device['ramfree_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["ramfree_value"] > other["ramfree_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the ram_score by comparing each device's ramfree_value with others
+            #ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
+            ram_score = corrected_num
+            
+            # Log the ram_score result
+            loguru.logger.debug(f"Device {device['id']} - ramfree_value calculated: {ram_score}")
+
+#############disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with diskfree_value {device['diskfree_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["diskfree_value"] > other["diskfree_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the disk_score by comparing each device's diskfree_value with others
+            #disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
+            disk_score = corrected_num
+            
+            # Log the disk_score result
+            loguru.logger.debug(f"Device {device['id']} - diskfree_value calculated: {disk_score}")
+
+
+#############iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with iops_value {device['iops_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["iops_value"] > other["iops_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the iops_score by comparing each device's iops_value with others
+            #iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
+            iops_score = corrected_num
+            
+            # Log the iops_score result
+            loguru.logger.debug(f"Device {device['id']} - iops_value calculated: {iops_score}")
+
+#############bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with bw_value {device['bw_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["bw_value"] > other["bw_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the bw_score by comparing each device's bw_value with others
+            #bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
+            bw_score = corrected_num
+            
+            # Log the bw_score result
+            loguru.logger.debug(f"Device {device['id']} - bw_value calculated: {bw_score}")
+
+
+            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+
+
+            score_data.append({
+                "region" : device['region'],
+                "site" : device['site'],
+                "id" : device['uuid'],
+                "status" : device['status'],
+                "role" : device['Role'],
+                "cnf_value" : device['cnf_value'],
+                "cpu_usage" : device['cpu_usage'],
+                "cpu_score" : cpu_score,
+                "ramfree_value" : device['ramfree_value'],
+                "ram_score" : ram_score,
+                "diskfree_value" : device['diskfree_value'],
+                "disk_score" : disk_score,
+                "iops_value" : device['iops_value'],
+                "iops_score" : iops_score,
+                "bw_value" : device['bw_value'],
+                "bw_score" : bw_score,
+                "total_score" : total_score,
+                "manufacturer" : device['manufacturer'],
+                "platform" : device['platform'],
+                "cluster" : device['cluster'],
+                "shortname" : device['shortname'],
+                "location" : device['location'],
+                "type": device['type'],
+                "long": device['long'],
+                "lat": device['lat']
+            })
+
+
+
+        for device in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+
+            debug_modee = 0
+            if debug_modee == 1:
+                print(f"device_EdgeServer:{device}")
+                
+############cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
+
+            loguru.logger.debug(f"Calculating score for device {device['id']} with cpu_usage {device['cpu_usage']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["cpu_usage"] < other["cpu_usage"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the cpu_score by comparing each device's cpu_usage with others
+            #cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
+            cpu_score = corrected_num
+            
+            # Log the cpu_score result
+            loguru.logger.debug(f"Device {device['id']} - cpu_score calculated: {cpu_score}")
+
+
+#############ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with ramfree_value {device['ramfree_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["ramfree_value"] > other["ramfree_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the ram_score by comparing each device's ramfree_value with others
+            #ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
+            ram_score = corrected_num
+            
+            # Log the ram_score result
+            loguru.logger.debug(f"Device {device['id']} - ramfree_value calculated: {ram_score}")
+
+#############disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with diskfree_value {device['diskfree_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["diskfree_value"] > other["diskfree_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the disk_score by comparing each device's diskfree_value with others
+            #disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
+            disk_score = corrected_num
+            
+            # Log the disk_score result
+            loguru.logger.debug(f"Device {device['id']} - diskfree_value calculated: {disk_score}")
+
+
+#############iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with iops_value {device['iops_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["iops_value"] > other["iops_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the iops_score by comparing each device's iops_value with others
+            #iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
+            iops_score = corrected_num
+            
+            # Log the iops_score result
+            loguru.logger.debug(f"Device {device['id']} - iops_value calculated: {iops_score}")
+
+#############bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with bw_value {device['bw_value']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["bw_value"] > other["bw_value"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the bw_score by comparing each device's bw_value with others
+            #bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
+            bw_score = corrected_num
+            
+            # Log the bw_score result
+            loguru.logger.debug(f"Device {device['id']} - bw_value calculated: {bw_score}")
+
+
+            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+
+            score_data.append({
+                "region" : device['region'],
+                "site" : device['site'],
+                "id" : device['uuid'],
+                "status" : device['status'],
+                "role" : device['Role'],
+                "cnf_value" : device['cnf_value'],
+                "cpu_usage" : device['cpu_usage'],
+                "cpu_score" : cpu_score,
+                "ramfree_value" : device['ramfree_value'],
+                "ram_score" : ram_score,
+                "diskfree_value" : device['diskfree_value'],
+                "disk_score" : disk_score,
+                "iops_value" : device['iops_value'],
+                "iops_score" : iops_score,
+                "bw_value" : device['bw_value'],
+                "bw_score" : bw_score,
+                "total_score" : total_score,
+                "manufacturer" : device['manufacturer'],
+                "platform" : device['platform'],
+                "cluster" : device['cluster'],
+                "shortname" : device['shortname'],
+                "location" : device['location'],
+                "type": device['type'],
+                "long": device['long'],
+                "lat": device['lat']
+            })
+
+
+        # Filter data by roles
+        edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
+        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
+
+
+        headers = [
+                "region",
+                "site",
+                "id",
+                "status",
+                "role",
+                "cnf_value",
+                "cpu_usage",
+                "cpu_score",
+                "ramfree_value",
+                "ram_score",
+                "diskfree_value",
+                "disk_score",
+                "iops_value",
+                "iops_score",
+                "bw_value",
+                "bw_score",
+                "total_score",
+                "manufacturer",
+                "platform",
+                "cluster",
+                "location",
+                "shortname",
+                "type",
+                "long",
+                "lat"
+            ]
+
+
+
+        # Filter by roles 
+        edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
+        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
+
+
+        debug_modee = 0
+        if debug_modee == 1:
+            # Show tables in console output ( for debug )
+            print_table(edge_server_data, 'EdgeServer')
+            print_table(fe_server_data, 'FEServer')
+
+ 
+        debug_modee = 0
+        if debug_modee == 1:
+            print(edge_server_data)
+
+
+        # ____________________________________________________________________
+        # Find the best Edge Server +++++++++++++++++++++++++++++++++++++++
+        best_server_edge = get_best_edge_server(edge_server_data)
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        # Show best Edge Server
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(best_server_edge)
+
+
+        debug_modee = 0
+        if debug_modee == 1:
+            # Show tables in console output ( for debug )
+            print_table(best_server_edge, 'BestEdgeServer')
+
+        # ____________________________________________________________________
+        # Find the best FarEdge Server +++++++++++++++++++++++++++++++++++++++
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        best_server_faredge = get_best_edge_server(fe_server_data) 
+
+        # Show best FarEdge Server
+        debug_modee = 0    
+        if debug_modee == 1:
+            print("Best FarEdge Server:")
+            print(best_server_faredge)
+
+        debug_modee = 0
+        if debug_modee == 1:
+            # Show tables in console output ( for debug )
+            print_table(best_server_faredge, 'BestFarEdgeServer')
+
+
+
+        # HTML---------------------------------------------------------------
+
+        # Function to generate tables with the headers and data
+        def generate_table(role, data, color):
+            html = ""
+            html += "<table class='data-table'><tr>"
+            
+
+            headers = [
+                "Region",
+                "Site",
+                "Device UUID",
+                "Status",
+                "Role",
+                "CNF",
+                "CPU Usage %",
+                "CPU Score",
+                "RAM free %",
+                "RAM Score",
+                "Disk free %",
+                "Disk Score",
+                "IOPS",
+                "IOPS Score",
+                "BW (Gbps)",
+                "BW Score",
+                "TOTAL SCORE",
+                "Manufacturer",
+                "Platform",
+                "Cluster",
+                "Location",
+                "ShortName",
+                "Type",
+                "Latitude",
+                "Longitude"
+                ]
+    
+
+
+            row_class = ""
+
+            edge_color = "#ffff99"  # Light yellow for EdgeServer
+            fe_color = "#ffcc99"  # Light orange for FEServer
+            
+            if color == 0:
+                prefix_htlm = "<tr>"
+            elif color == 1: ## FarEdge
+                row_class = f"style='background-color: {fe_color};'"
+                prefix_htlm = f"<tr {row_class}>"
+            elif color == 2: ## Edge
+                row_class = f"style='background-color: {edge_color};'"
+                prefix_htlm = f"<tr {row_class}>"
+            
+        
+            # Table headers
+            html += "".join([f"<th>{header}</th>" for header in headers])
+            html += "</tr>"
+            
+            # Adding rows with the device data
+            for device in data:
+                
+                if color == 0:
+                
+                    if role == 'FEServer': ## FarEdge
+                        row_class = f"style='background-color: {fe_color};'" if device in (best_server_faredge) else ""
+                    elif role == 'EdgeServer': ## Edge
+                        row_class = f"style='background-color: {edge_color};'" if device in (best_server_edge) else ""
+
+                    prefix_htlm = f"<tr {row_class}>"
+
+
+                html += prefix_htlm
+                html += f"<td>{device['region']}</td>"
+                html += f"<td>{device['site']}</td>"
+                html += f"<td>{device['id']}</td>"
+                html += f"<td>{device['status']}</td>"
+                html += f"<td>{device['role']}</td>"
+                html += f"<td>{device['cnf_value']}</td>"
+                html += f"<td>{device['cpu_usage']}</td>"
+                html += f"<td>{device['cpu_score']}</td>"
+                html += f"<td>{device['ramfree_value']}</td>"
+                html += f"<td>{device['ram_score']}</td>"
+                html += f"<td>{device['diskfree_value']}</td>"
+                html += f"<td>{device['disk_score']}</td>"
+                html += f"<td>{device['iops_value']}</td>"
+                html += f"<td>{device['iops_score']}</td>"
+                html += f"<td>{device['bw_value']}</td>"
+                html += f"<td>{device['bw_score']}</td>"
+                html += f"<td>{device['total_score']}</td>"
+                html += f"<td>{device['manufacturer']}</td>"
+                html += f"<td>{device['platform']}</td>"
+                html += f"<td>{device['cluster']}</td>"
+                html += f"<td>{device['location']}</td>"
+                html += f"<td>{device['shortname']}</td>"
+                html += f"<td>{device['type']}</td>"
+                html += f"<td>{device['long']}</td>"
+                html += f"<td>{device['lat']}</td>"
+                html += "</tr>"
+            
+            html += "</table>"
+            return html
+
+        # Starting the HTML output with the header section
+        all_data_html_1 = "<hr>"
+        all_data_html_1 += f"""
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Data 'EdgeServer' algorithm#2: *********************</h2>
+            <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
+        </div>
+        """
+
+        # Generate HTML tables for both roles
+        all_data_html_1 += generate_table('EdgeServer', edge_server_data, 0)
+
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(f"all_data_html_1:{all_data_html_1}")
+
+        all_data_html_2 = "<hr>"
+        all_data_html_2 += f"""
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Data 'FEServer' algorithm#2: *********************</h2>
+            <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
+        </div>
+        """
+        all_data_html_2 += generate_table('FEServer', fe_server_data, 0)
+
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(f"all_data_html_2:{all_data_html_2}")
+        
+
+        # Starting the HTML output with the header section
+        all_data_html_3 = "<hr>"
+        all_data_html_3 += f"""
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Data 'BestFarEdgeServer' algorithm#2: *********************</h2>
+            <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
+        </div>
+        """
+
+        # Generate HTML tables for both roles
+        all_data_html_3 += generate_table('BestFarEdgeServer', best_server_faredge,1)
+
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(f"all_data_html_3:{all_data_html_3}")
+
+        all_data_html_4 = "<hr>"
+        all_data_html_4 += f"""
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Data 'BestEdgeServer' algorithm#2: *********************</h2>
+            <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
+        </div>
+        """
+        all_data_html_4 += generate_table('BestEdgeServer', best_server_edge,2)
+        all_data_html_4 += "<hr>"
+        all_data_html_4 += "<hr>"
+
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(f"all_data_html_4:{all_data_html_4}")
+        
+
+
+
+
+
+        # EXcel---------------------------------------------------------------
+
+        headers = ["id", "cpu_usage", "cpu_score", "ramfree_value", "ram_score", "diskfree_value", "disk_score",
+                   "iops_value", "iops_score", "bw_value", "bw_score", "total_score", "role"]
+
+        # Filter data by roles
+        edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
+        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
+
+        # Convert the filtered data into pandas DataFrames
+        edge_server_df = pd.DataFrame(edge_server_data, columns=headers)
+        fe_server_df = pd.DataFrame(fe_server_data, columns=headers)
+
+        # Generate a timestamp for the filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_folder = "output"  # Folder where the file will be saved
+
+        # Ensure that the 'output' folder exists
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        # Create the filename with the timestamp
+        file_name = f"{output_folder}/Device_Scores_{timestamp}.xlsx"
+
+        # Write both tables to the Excel file
+        with pd.ExcelWriter(file_name) as writer:
+            edge_server_df.to_excel(writer, sheet_name='EdgeServer', index=False)
+            fe_server_df.to_excel(writer, sheet_name='FEServer', index=False)
+
+        # Print the location of the saved Excel file
+        debug_modee = 1
+        if debug_modee == 1:
+            loguru.logger.debug(f"The tables have been exported to: {file_name}")
+
+
+
+
+
+
+
 
     # Variable to control database update
     do_update = 1  # Set to 1 to perform update, 0 to skip
 
     if do_update:
+        
         for device in devices:
-            logger.debug(f"Updating device ID {device['id']}: CNF {device['CNF']} -> {device['cnf_value']}, CPU {device['CPU']} -> {device['cpu_usage']}, RamTot {device['RamTot']} -> {device['ramtot_value']}, RamAva {device['RamAva']} -> {device['ramava_value']}, DiskAva {device['DiskAva']} -> {device['diskava_value']}, IOPS {device['IOPS']} -> {device['iops_value']}, BW {device['BW']} -> {device['bw_value']}, DiskTot {device['DiskTot']} -> {device['disktot_value']}")
+            loguru.logger.debug(f"Updating device ID {device['id']}: CNF {device['CNF']} -> {device['cnf_value']}, CPU {device['CPU']} -> {device['cpu_usage']}, RamTot {device['RamTot']} -> {device['ramtot_value']}, RamAva {device['RamAva']} -> {device['ramava_value']}, DiskAva {device['DiskAva']} -> {device['diskava_value']}, IOPS {device['IOPS']} -> {device['iops_value']}, BW {device['BW']} -> {device['bw_value']}, DiskTot {device['DiskTot']} -> {device['disktot_value']}")
+#            print(f"Device: {device}")
             cursor.execute(
                 "UPDATE Provisioned_Devices SET CNF=?, CPU=?, RamTot=?, RamAva=?, DiskAva=?, IOPS=?, BW=?, DiskTot=? WHERE id=?",
                 (device["cnf_value"], device["cpu_usage"], device["ramtot_value"], device["ramava_value"],
                  device["diskava_value"], device["iops_value"], device["bw_value"], device["disktot_value"], device["id"])
             )
+            
+            
+            
+            
         conn.commit()
-        logger.info("Database updated with the new values.")
-
+#        loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}", rotation="1 day")
+#        loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day")
+        
+        loguru.logger.info("Database updated with the new values.")
+        loguru.logger.info("but only this logs")
     conn.close()
 
+
+    return all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4
 
 
 def save_html_to_file(html_content, filename=my_html_output2):
@@ -459,13 +1214,14 @@ def save_html_to_file(html_content, filename=my_html_output2):
         file.write(html_content)
 
 
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## | Database Functions                                 | 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def execute_query_view(view_name: str):
     """Function to connect to the database and execute a query (view) """
     try:
-        logger.debug(f"Execute view: 'SELECT * FROM {view_name}'")
+        loguru.logger.debug(f"Execute view: 'SELECT * FROM {view_name}'")
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
         cursor.execute(f"SELECT * FROM {view_name}")
@@ -481,7 +1237,7 @@ def execute_sql_command(command: str):
     try:
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"Execute query: '{command}'")
+            loguru.logger.debug(f"Execute query: '{command}'")
 
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
@@ -494,6 +1250,7 @@ def execute_sql_command(command: str):
 
     except sqlite3.OperationalError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -531,8 +1288,9 @@ def get_bezier_curve_points(
 
 
 ## Prepare GUI
-def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all):
+def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all,all_data_html_1, all_data_html_2,all_data_html_3, all_data_html_4):
     """Prepare GUI (HTML) """
+
 
     # List of buttons ( first row, top page )
     position_html = '<br>'
@@ -809,7 +1567,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
 
     # Insert values in 'Distance_SMU_to_far_edge_table' table
     for row in all_data_with_distances:
-
+        
         sql_query = f"""
         INSERT INTO Distance_SMU_to_far_edge_table
             (
@@ -889,7 +1647,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
         "Latitude",
         "Longitude",
         "Distance (km)",
-        "Latency",
+        "Latency (&microsec) | 3.4",
         "CPU score",
         "Mem score",
         "Disk score",
@@ -960,7 +1718,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
         "Latitude",
         "Longitude",
         "Distance (km)",
-        "Latency",
+        "Latency (&microsec) | 5.0",
         "CPU score",
         "Mem score",
         "Disk score",
@@ -1055,7 +1813,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
         "Latitude",
         "Longitude",
         "Distance (km)",
-        "Latency",
+        "Latency (&microsec)",
         "CPU score",
         "Mem score",
         "Disk score",
@@ -1097,6 +1855,29 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
     closest_device_html += "<br>"
     closest_device_html += "<hr>"
 
+    debug_modee = 0    
+    if debug_modee == 1:
+        print(f"all_data_html_1:{all_data_html_1}")
+
+    debug_modee = 0    
+    if debug_modee == 1:
+        print(f"all_data_html_2:{all_data_html_2}")
+
+    debug_modee = 0    
+    if debug_modee == 1:
+        print(f"all_data_html_3:{all_data_html_3}")
+
+    debug_modee = 0    
+    if debug_modee == 1:
+        print(f"all_data_html_4:{all_data_html_4}")
+
+    all_data_html += all_data_html_1
+    all_data_html += all_data_html_2
+    all_data_html += all_data_html_3
+    all_data_html += all_data_html_4
+    
+
+
     # ------------------------------------------------------------------------------------------
     # Create the map with folium
     map_html = create_map(all_data_with_distances, closest_devices,all_data_with_distances_edge)
@@ -1104,7 +1885,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
     html_content = f"""
     <html>
     <head>
-        <title>UOP v1.0</title>    
+        <title>UOP v1.1</title>    
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -1601,7 +2382,7 @@ def highlight_high_scores(excel_file):
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"File saved as: {highlighted_file}")
+            loguru.logger.debug(f"File saved as: {highlighted_file}")
     
     except Exception as e:
         print(f"Error: {e}")
@@ -1711,7 +2492,7 @@ def export_view_to_excel(view_name):
         
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"File generated: {file_path}")
+            loguru.logger.debug(f"File generated: {file_path}")
         
         set_background_white(file_path)
         # Apply background color changes
@@ -1739,11 +2520,13 @@ def export_view_to_excel(view_name):
 @app.get("/test")
 async def get_hello_world():
     """Hello world"""
+    loguru.logger.info("Received: GET /test")
+
     # Log de nivel INFO
-    logger.info("Hello world! Sample info log")
+    loguru.logger.info("Hello world! Sample info log")
 
     # Log de nivel DEBUG
-    logger.debug("Hello world! Sample debug log")
+    loguru.logger.debug("Hello world! Sample debug log")
 
     return {"message": "Hello, World!"}
 
@@ -1753,41 +2536,42 @@ async def get_hello_world():
 async def download_file(filename: str):
     """Download files"""
 
+    loguru.logger.info(f"Received: GET /download/{filename}")
     try:
         # Decode the filename to handle spaces and special characters properly
         decoded_filename = urllib.parse.unquote(filename)
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"Decoded filename: '{decoded_filename}'")
+            loguru.logger.debug(f"Decoded filename: '{decoded_filename}'")
 
         # Path to look for files to be downloaded
         BASE_DIR2 = os.getcwd() + '/output/'
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"Base directory: '{BASE_DIR2}'")
+            loguru.logger.debug(f"Base directory: '{BASE_DIR2}'")
 
         # Path in filesystem for requested file
         file_path = os.path.join(BASE_DIR2, decoded_filename)  # Cambié de '/' a 'os.path.join'
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"Full file path: '{file_path}'")
+            loguru.logger.debug(f"Full file path: '{file_path}'")
 
         # Check if file exists
         if os.path.exists(file_path):
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"File found: {file_path}")
+                loguru.logger.debug(f"File found: {file_path}")
 
             return FileResponse(file_path, filename=decoded_filename)
         else:
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"File not found: {file_path}")
+                loguru.logger.debug(f"File not found: {file_path}")
 
             return JSONResponse(content={"error": f"File not found: {decoded_filename}"}, status_code=404)
     
@@ -1802,9 +2586,11 @@ async def download_file(filename: str):
 async def get_export_excel_and_download():
     """Download files"""
 
+    loguru.logger.info(f"Received: GET /export_excel_and_download")
+
     debug_modee = 0
     if debug_modee == 1:
-        logger.debug("Exporting to Excel and Download...")
+        loguru.logger.debug("Exporting to Excel and Download...")
 
     # Execute for each view
     try:
@@ -1813,13 +2599,13 @@ async def get_export_excel_and_download():
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"Generating Excel for Database view: {view}")
+                loguru.logger.debug(f"Generating Excel for Database view: {view}")
             # export_view_to_excel(view)
             generated_file = export_view_to_excel(view)
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"generated_file: {generated_file}")
+                loguru.logger.debug(f"generated_file: {generated_file}")
 
             list_of_files.append(generated_file)
 
@@ -1827,8 +2613,8 @@ async def get_export_excel_and_download():
     
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"Path: {current_path} ")
-                logger.debug(f"List of files: {list_of_files} ")            
+                loguru.logger.debug(f"Path: {current_path} ")
+                loguru.logger.debug(f"List of files: {list_of_files} ")            
             
             if views == 'Table_VI_UOP_VIEW_4A_WITH_FE_EDCs_FOR_A_SHARED_UPF':
                 generated_file_highlighted = generated_file.replace(".xlsx", "_highlighted.xlsx")
@@ -1836,7 +2622,7 @@ async def get_export_excel_and_download():
 
                 debug_modee = 0
                 if debug_modee == 1:
-                    logger.debug(f"generated_file_highlighted: {generated_file_highlighted}")
+                    loguru.logger.debug(f"generated_file_highlighted: {generated_file_highlighted}")
 
 #        if debug_modee == 1:
 #
@@ -1846,12 +2632,12 @@ async def get_export_excel_and_download():
 #    
 #                debug_modee = 0
 #                if debug_modee == 1:
-#                    logger.debug(f"Checking: '{full_file_path}'")
+#                    loguru.logger.debug(f"Checking: '{full_file_path}'")
 #                    
 #                if os.path.exists(full_file_path):
-#                    logger.debug(f"File exists: {full_file_path}")
+#                    loguru.logger.debug(f"File exists: {full_file_path}")
 #                else:
-#                    logger.debug(f"File does not exist: {full_file_path}")
+#                    loguru.logger.debug(f"File does not exist: {full_file_path}")
 
 
         # Convert file names into downloadable URLs
@@ -1859,24 +2645,24 @@ async def get_export_excel_and_download():
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"file_urls: {file_urls}")
+            loguru.logger.debug(f"file_urls: {file_urls}")
             
         # Replace /download/output/ by /download/
         file_urls = [url.replace('/download/output/', '/download/') for url in file_urls]
 
         debug_modee = 0
         if debug_modee == 1:
-            logger.debug(f"file_urls: {file_urls}")
-            logger.debug(f"BASE_DIR: '{BASE_DIR}'")
+            loguru.logger.debug(f"file_urls: {file_urls}")
+            loguru.logger.debug(f"BASE_DIR: '{BASE_DIR}'")
 
             for file_path in file_urls:
 
                 my_path = os.getcwd() + '/output/'
                 if os.path.exists(full_file_path):
-                    logger.debug(f"File existss: {full_file_path}")
+                    loguru.logger.debug(f"File existss: {full_file_path}")
                     
                 else:
-                    logger.debug(f"File does not existt: {full_file_path}")
+                    loguru.logger.debug(f"File does not existt: {full_file_path}")
                     
 
         return JSONResponse(content={"files": file_urls})
@@ -1890,9 +2676,11 @@ async def get_export_excel_and_download():
 @app.get("/export_excel", response_class=HTMLResponse)
 async def get_export_excel():
 
+    loguru.logger.info(f"Received: GET /export_excel")
+
     debug_modee = 1
     if debug_modee == 1:
-        logger.debug(f"Exporting to Excel...")
+        loguru.logger.debug(f"Exporting to Excel...")
         
     # Execute for each view
     try:
@@ -1901,7 +2689,7 @@ async def get_export_excel():
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"Generating Excel for Database view: {view}")
+                loguru.logger.debug(f"Generating Excel for Database view: {view}")
             
             generated_file = export_view_to_excel(view)
 
@@ -1919,28 +2707,31 @@ async def get_export_excel():
 @app.get("/", response_class=HTMLResponse)
 async def get_closest_device():
 
+    loguru.logger.info(f"Received: GET /")
+
+    loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day")
 
     debug_modee = 0
     if debug_modee == 1:
-        logger.debug(f"random_value: {use_random_values}")
+        loguru.logger.debug(f"random_value: {use_random_values}")
         
     if use_random_values == 0: ### We use original values
 
         if debug_modee == 1:
-            logger.debug(f"Using default values from table Provisioned_devices")
-            logger.debug(f"Updating table Provisioned_devices from Provisioned_devices_Original_values")
+            loguru.logger.debug(f"Using default values from table Provisioned_devices")
+            loguru.logger.debug(f"Updating table Provisioned_devices from Provisioned_devices_Original_values")
             
     else:
 
         if debug_modee == 1:
-            logger.debug("Radnomize.......")
+            loguru.logger.debug("Radnomize.......")
             
-        get_random_value_in_db()
+        all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4 = get_random_value_in_db()
         
     debug_modee = 0
 
 
-    # Fetch data from UOP1_V2_EDGE_AND_FAREDGE
+    # Fetch data from UOP_1_Shared_UPF_Edge_Far_Edge_DCs_location_info_v3
     data = execute_query_view(view_name)
 
     if not data:
@@ -1999,7 +2790,9 @@ async def get_closest_device():
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
-            latency =  round((distance / 200), 4)
+            #latency =  round((distance / 200), 4)
+            latency =  round((distance * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
             ### Latency ---------------------------------------------------------------------------
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2024,15 +2817,20 @@ async def get_closest_device():
             manufacturer_value = row[11] # Column with Manufacturer
             platform_value = row[12] # Column with Platform 
             deployed_cnf_value = row[5] # Column with Platform 
+
+            debug_modee = 1
+            if debug_modee == 1:
+                loguru.logger.debug("")
+                loguru.logger.debug(f"Site '{row[1]}':")
      
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- CPU score:")
-                logger.debug(f"  cpu_weight     : {cpu_weight}")
-                logger.debug(f"  cpu_usage_value: {cpu_usage_value}")
-                logger.debug(f"  cpu_div        : {cpu_div}")
-                logger.debug(f"  Formula        : cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- CPU score:")
+                loguru.logger.debug(f"  cpu_weight     : {cpu_weight}")
+                loguru.logger.debug(f"  cpu_usage_value: {cpu_usage_value}")
+                loguru.logger.debug(f"  cpu_div        : {cpu_div}")
+                loguru.logger.debug(f"  Formula        : cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )")
 
             cpu_score = cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )
             cpu_score_scaled = round(1 + 9 * cpu_score,2)
@@ -2040,58 +2838,58 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  cpu_score        : {cpu_score}")
-                logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  cpu_score        : {cpu_score}")
+                loguru.logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
+                loguru.logger.debug("")
 
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- RAM score:")
-                logger.debug(f"  ram_weight     : {ram_weight}")
-                logger.debug(f"  ram_free_value : {ram_free_value}")
-                logger.debug(f"  ram_div        : {ram_div}")
-                logger.debug(f"  Formula        : ram_weight * ( ram_free_value / ram_div ) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- RAM score:")
+                loguru.logger.debug(f"  ram_weight     : {ram_weight}")
+                loguru.logger.debug(f"  ram_free_value : {ram_free_value}")
+                loguru.logger.debug(f"  ram_div        : {ram_div}")
+                loguru.logger.debug(f"  Formula        : ram_weight * ( ram_free_value / ram_div ) ")
 
             ram_score = ram_weight * ( ram_free_value / ram_div )
             ram_score_scaled = round(1 + 9 * ram_score,2)
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  ram_score      : {ram_score}")
-                logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  ram_score      : {ram_score}")
+                loguru.logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Disk score:")
-                logger.debug(f"  disk_weight     : {disk_weight}")
-                logger.debug(f"  disk_free_value : {disk_free_value}")
-                logger.debug(f"  disk_div        : {disk_div}")
-                logger.debug(f"  Formula         : disk_weight * ( disk_free_value / disk_div ) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Disk score:")
+                loguru.logger.debug(f"  disk_weight     : {disk_weight}")
+                loguru.logger.debug(f"  disk_free_value : {disk_free_value}")
+                loguru.logger.debug(f"  disk_div        : {disk_div}")
+                loguru.logger.debug(f"  Formula         : disk_weight * ( disk_free_value / disk_div ) ")
 
             disk_score = disk_weight * ( disk_free_value / disk_div )
             disk_score_scaled = round(1 + 9 * disk_score,2)
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  disk_score      : {disk_score}")
-                logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  disk_score      : {disk_score}")
+                loguru.logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
+                loguru.logger.debug("")
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- IOPS score:")
-                logger.debug(f"  iops_weight     : {iops_weight}")
-                logger.debug(f"  iops_value      : {iops_value}")
-                logger.debug(f"  iops_div        : {iops_div}")
-                logger.debug(f"  iops_min_value  : {iops_min_value}")
-                logger.debug(f"  iops_max_value  : {iops_max_value }")
-                logger.debug(f"  Formula         : iops_weight * ( iops_value / iops_div ) ")
-                logger.debug(f"  Formula2        : (iops - iops_min_value) / (iops_max_value - iops_min_value) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- IOPS score:")
+                loguru.logger.debug(f"  iops_weight     : {iops_weight}")
+                loguru.logger.debug(f"  iops_value      : {iops_value}")
+                loguru.logger.debug(f"  iops_div        : {iops_div}")
+                loguru.logger.debug(f"  iops_min_value  : {iops_min_value}")
+                loguru.logger.debug(f"  iops_max_value  : {iops_max_value }")
+                loguru.logger.debug(f"  Formula         : iops_weight * ( iops_value / iops_div ) ")
+                loguru.logger.debug(f"  Formula2        : (iops - iops_min_value) / (iops_max_value - iops_min_value) ")
 
             #iops_score = iops_weight * ( iops_value / iops_div )
             # More iops is better
@@ -2102,21 +2900,21 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  iops_score      : {iops_score}")
-                logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  iops_score      : {iops_score}")
+                loguru.logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Bandwith score:")
-                logger.debug(f"  bw_weight       : {bw_weight}")
-                logger.debug(f"  bandwith_value  : {bandwith_value}")
-                logger.debug(f"  bw_div          : {bw_div}")
-                logger.debug(f"  bw_min_value    : {bw_min_value}")
-                logger.debug(f"  bw_max_value    : {bw_max_value }")
-                logger.debug(f"  Formula         : bw_weight * ( bandwith_value / bw_div ) ")
-                logger.debug(f"  Formula2        : (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value ) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Bandwith score:")
+                loguru.logger.debug(f"  bw_weight       : {bw_weight}")
+                loguru.logger.debug(f"  bandwith_value  : {bandwith_value}")
+                loguru.logger.debug(f"  bw_div          : {bw_div}")
+                loguru.logger.debug(f"  bw_min_value    : {bw_min_value}")
+                loguru.logger.debug(f"  bw_max_value    : {bw_max_value }")
+                loguru.logger.debug(f"  Formula         : bw_weight * ( bandwith_value / bw_div ) ")
+                loguru.logger.debug(f"  Formula2        : (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value ) ")
 
             #bw_score = bw_weight * ( bandwith_value / bw_div )
             # More Bandwidth is better
@@ -2128,18 +2926,18 @@ async def get_closest_device():
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  bw_score        : {bw_score}")
-                logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  bw_score        : {bw_score}")
+                loguru.logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Distance score:")
-                logger.debug(f"  distance_weight  : {distance_weight}")
-                logger.debug(f"  distance_value   : {distance}")
-                logger.debug(f"  distance_div     : {distance_div}")
-                logger.debug(f"  Formula          : distance_weight * ( 1 - ( distance / distance_div ) )")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Distance score:")
+                loguru.logger.debug(f"  distance_weight  : {distance_weight}")
+                loguru.logger.debug(f"  distance_value   : {distance}")
+                loguru.logger.debug(f"  distance_div     : {distance_div}")
+                loguru.logger.debug(f"  Formula          : distance_weight * ( 1 - ( distance / distance_div ) )")
 
 
             ## We don't want to include the distance in final_score yet ######################
@@ -2148,20 +2946,20 @@ async def get_closest_device():
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"  distance_score   : {distance_score}")
-                logger.debug("")
+                loguru.logger.debug(f"  distance_score   : {distance_score}")
+                loguru.logger.debug("")
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Latency score:")
-                logger.debug(f"  latency_weight   : {latency_weight}")
-                logger.debug(f"  latency_value    : {latency}")
-                logger.debug(f"  latency_div      : {latency_div}")
-                logger.debug(f"  latency_min_value: {latency_min_value}")
-                logger.debug(f"  latency_max_value: {latency_max_value }")
-                logger.debug(f"  Formula          : latency_weight * ( 1 - ( latency / latency_div ) )")
-                logger.debug(f"  Formula2         : latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Latency score:")
+                loguru.logger.debug(f"  latency_weight   : {latency_weight}")
+                loguru.logger.debug(f"  latency_value    : {latency}")
+                loguru.logger.debug(f"  latency_div      : {latency_div}")
+                loguru.logger.debug(f"  latency_min_value: {latency_min_value}")
+                loguru.logger.debug(f"  latency_max_value: {latency_max_value }")
+                loguru.logger.debug(f"  Formula          : latency_weight * ( 1 - ( latency / latency_div ) )")
+                loguru.logger.debug(f"  Formula2         : latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )")
 
             #latency_score = latency_weight * ( 1 - ( latency / latency_div ) )
             latency_score = latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )  # A menor latency mejor
@@ -2169,14 +2967,14 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  latency_score        : {latency_score}")
-                logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  latency_score        : {latency_score}")
+                loguru.logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
+                loguru.logger.debug("")
             
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"final_score = cpu_score ({cpu_score}) + ram_score ({ram_score}) + disk_score ({disk_score}) + iops_score ({iops_score}) + bw_score ({bw_score}) + latency_score ({latency_score}) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"final_score = cpu_score ({cpu_score}) + ram_score ({ram_score}) + disk_score ({disk_score}) + iops_score ({iops_score}) + bw_score ({bw_score}) + latency_score ({latency_score}) ")
 
 #            final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + distance_score + latency_score
             final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + latency_score
@@ -2189,10 +2987,10 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"final_score = {final_score }")
-                logger.debug(f"final_score2 = {final_score2 }")
-                logger.debug(f"final_score2_scaled = {final_score_scaled }")
-                logger.debug("")
+                loguru.logger.debug(f"final_score = {final_score }")
+                loguru.logger.debug(f"final_score2 = {final_score2 }")
+                loguru.logger.debug(f"final_score2_scaled = {final_score_scaled }")
+                loguru.logger.debug("")
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ##            debug_modee = 0
@@ -2268,7 +3066,7 @@ async def get_closest_device():
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f">>> Final score: {ffinal_score}")
+                loguru.logger.debug(f">>> Final score: {ffinal_score}")
 
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2287,9 +3085,9 @@ async def get_closest_device():
             
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"value_device_type:{value_device_type}")
-                logger.debug(f"device_type:{device_type}")
-                logger.debug(closest_devices)
+                loguru.logger.debug(f"value_device_type:{value_device_type}")
+                loguru.logger.debug(f"device_type:{device_type}")
+                loguru.logger.debug(closest_devices)
 
             if device_type in closest_devices:
                 if ffinal_score > max_score[device_type]:
@@ -2299,8 +3097,8 @@ async def get_closest_device():
     debug_modee = 0
     if debug_modee == 1:
         for item in new_data2:
-            logger.debug(item)
-        logger.debug("#####################################################")
+            loguru.logger.debug(item)
+        loguru.logger.debug("#####################################################")
 
     
 ###########################################################################
@@ -2339,7 +3137,9 @@ async def get_closest_device():
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
-            latency =  round((distance / 200), 4)
+            #latency =  round((distance / 200), 4)
+            latency =  round((distance * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+            
             ### Latency ---------------------------------------------------------------------------
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2357,68 +3157,68 @@ async def get_closest_device():
                 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- CPU score:")
-                logger.debug(f"  cpu_weight     : {cpu_weight}")
-                logger.debug(f"  cpu_usage_value: {cpu_usage_value}")
-                logger.debug(f"  cpu_div        : {cpu_div}")
-                logger.debug(f"  Formula        : cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- CPU score:")
+                loguru.logger.debug(f"  cpu_weight     : {cpu_weight}")
+                loguru.logger.debug(f"  cpu_usage_value: {cpu_usage_value}")
+                loguru.logger.debug(f"  cpu_div        : {cpu_div}")
+                loguru.logger.debug(f"  Formula        : cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )")
 
             cpu_score = cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )
             cpu_score_scaled = round(1 + 9 * cpu_score,2)
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  cpu_score        : {cpu_score}")
-                logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  cpu_score        : {cpu_score}")
+                loguru.logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- RAM score:")
-                logger.debug(f"  ram_weight     : {ram_weight}")
-                logger.debug(f"  ram_free_value : {ram_free_value}")
-                logger.debug(f"  ram_div        : {ram_div}")
-                logger.debug(f"  Formula        : ram_weight * ( ram_free_value / ram_div ) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- RAM score:")
+                loguru.logger.debug(f"  ram_weight     : {ram_weight}")
+                loguru.logger.debug(f"  ram_free_value : {ram_free_value}")
+                loguru.logger.debug(f"  ram_div        : {ram_div}")
+                loguru.logger.debug(f"  Formula        : ram_weight * ( ram_free_value / ram_div ) ")
 
             ram_score = ram_weight * ( ram_free_value / ram_div )
             ram_score_scaled = round(1 + 9 * ram_score,2)
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  ram_score        : {ram_score}")
-                logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  ram_score        : {ram_score}")
+                loguru.logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"- Disk score:")
-                logger.debug(f"  disk_weight     : {disk_weight}")
-                logger.debug(f"  disk_free_value : {disk_free_value}")
-                logger.debug(f"  disk_div        : {disk_div}")
-                logger.debug(f"  Formula         : disk_weight * ( disk_free_value / disk_div ) ")
+                loguru.logger.debug(f"- Disk score:")
+                loguru.logger.debug(f"  disk_weight     : {disk_weight}")
+                loguru.logger.debug(f"  disk_free_value : {disk_free_value}")
+                loguru.logger.debug(f"  disk_div        : {disk_div}")
+                loguru.logger.debug(f"  Formula         : disk_weight * ( disk_free_value / disk_div ) ")
 
             disk_score = disk_weight * ( disk_free_value / disk_div )
             disk_score_scaled = round(1 + 9 * disk_score,2)
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  disk_score        : {disk_score}")
-                logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  disk_score        : {disk_score}")
+                loguru.logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
+                loguru.logger.debug("")
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- IOPS score:")
-                logger.debug(f"  iops_weight     : {iops_weight}")
-                logger.debug(f"  iops_value      : {iops_value}")
-                logger.debug(f"  iops_div        : {iops_div}")
-                logger.debug(f"  iops_min_value  : {iops_min_value}")
-                logger.debug(f"  iops_max_value  : {iops_max_value }")
-                logger.debug(f"  Formula         : iops_weight * ( iops_value / iops_div ) ")
-                logger.debug(f"  Formula2        : (iops - iops_min_value) / (iops_max_value - iops_min_value) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- IOPS score:")
+                loguru.logger.debug(f"  iops_weight     : {iops_weight}")
+                loguru.logger.debug(f"  iops_value      : {iops_value}")
+                loguru.logger.debug(f"  iops_div        : {iops_div}")
+                loguru.logger.debug(f"  iops_min_value  : {iops_min_value}")
+                loguru.logger.debug(f"  iops_max_value  : {iops_max_value }")
+                loguru.logger.debug(f"  Formula         : iops_weight * ( iops_value / iops_div ) ")
+                loguru.logger.debug(f"  Formula2        : (iops - iops_min_value) / (iops_max_value - iops_min_value) ")
 
             #iops_score = iops_weight * ( iops_value / iops_div )
             # More iops is better
@@ -2429,21 +3229,20 @@ async def get_closest_device():
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  iops_score        : {iops_score}")
-                logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  iops_score        : {iops_score}")
+                loguru.logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("a")
-                logger.debug(f"- Bandwith score:")
-                logger.debug(f"  bw_weight       : {bw_weight}")
-                logger.debug(f"  bandwith_value  : {bandwith_value}")
-                logger.debug(f"  bw_div          : {bw_div}")
-                logger.debug(f"  bw_min_value    : {bw_min_value}")
-                logger.debug(f"  bw_max_value    : {bw_max_value }")
-                logger.debug(f"  Formula         : bw_weight * ( bandwith_value / bw_div ) ")
-                logger.debug(f"  Formula2        : (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value ) ")
+                loguru.logger.debug(f"- Bandwith score:")
+                loguru.logger.debug(f"  bw_weight       : {bw_weight}")
+                loguru.logger.debug(f"  bandwith_value  : {bandwith_value}")
+                loguru.logger.debug(f"  bw_div          : {bw_div}")
+                loguru.logger.debug(f"  bw_min_value    : {bw_min_value}")
+                loguru.logger.debug(f"  bw_max_value    : {bw_max_value }")
+                loguru.logger.debug(f"  Formula         : bw_weight * ( bandwith_value / bw_div ) ")
+                loguru.logger.debug(f"  Formula2        : (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value ) ")
 
             #bw_score = bw_weight * ( bandwith_value / bw_div )
             # More Bandwidth is better
@@ -2455,19 +3254,19 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  bw_score        : {bw_score}")
-                logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  bw_score        : {bw_score}")
+                loguru.logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
+                loguru.logger.debug("")
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Distance score:")
-                logger.debug(f"  distance_weight  : {distance_weight}")
-                logger.debug(f"  distance_value   : {distance}")
-                logger.debug(f"  distance_div     : {distance_div}")
-                logger.debug(f"  Formula          : distance_weight * ( 1 - ( distance / distance_div ) )")
-                logger.debug("")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Distance score:")
+                loguru.logger.debug(f"  distance_weight  : {distance_weight}")
+                loguru.logger.debug(f"  distance_value   : {distance}")
+                loguru.logger.debug(f"  distance_div     : {distance_div}")
+                loguru.logger.debug(f"  Formula          : distance_weight * ( 1 - ( distance / distance_div ) )")
+                loguru.logger.debug("")
 
 # We don't want to include distance in score
 #            distance_score = distance_weight * ( 1 - ( distance / distance_div ) )
@@ -2475,21 +3274,21 @@ async def get_closest_device():
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"  distance_score   : {distance_score}")
-                logger.debug("")
+                loguru.logger.debug(f"  distance_score   : {distance_score}")
+                loguru.logger.debug("")
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"- Latency score:")
-                logger.debug(f"  latency_weight   : {latency_weight}")
-                logger.debug(f"  latency_value    : {latency}")
-                logger.debug(f"  latency_div      : {latency_div}")
-                logger.debug(f"  latency_min_value: {latency_min_value}")
-                logger.debug(f"  latency_max_value: {latency_max_value }")
-                logger.debug(f"  latency_div      : {latency_div}")
-                logger.debug(f"  Formula          : latency_weight * ( 1 - ( latency / latency_div ) )")
-                logger.debug(f"  Formula2         : latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"- Latency score:")
+                loguru.logger.debug(f"  latency_weight   : {latency_weight}")
+                loguru.logger.debug(f"  latency_value    : {latency}")
+                loguru.logger.debug(f"  latency_div      : {latency_div}")
+                loguru.logger.debug(f"  latency_min_value: {latency_min_value}")
+                loguru.logger.debug(f"  latency_max_value: {latency_max_value }")
+                loguru.logger.debug(f"  latency_div      : {latency_div}")
+                loguru.logger.debug(f"  Formula          : latency_weight * ( 1 - ( latency / latency_div ) )")
+                loguru.logger.debug(f"  Formula2         : latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )")
 
             #latency_score = 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value)  # A menor latency mejor
             latency_score = latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )  # A menor latency mejor
@@ -2500,14 +3299,14 @@ async def get_closest_device():
             
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"  latency_score        : {latency_score}")
-                logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
-                logger.debug("")
+                loguru.logger.debug(f"  latency_score        : {latency_score}")
+                loguru.logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
+                loguru.logger.debug("")
             
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug("")
-                logger.debug(f"final_score = cpu_score ({cpu_score}) + ram_score ({ram_score}) + disk_score ({disk_score}) + iops_score ({iops_score}) + bw_score ({bw_score}) + distance_score ({distance_score}) + latency_score ({latency_score}) ")
+                loguru.logger.debug("")
+                loguru.logger.debug(f"final_score = cpu_score ({cpu_score}) + ram_score ({ram_score}) + disk_score ({disk_score}) + iops_score ({iops_score}) + bw_score ({bw_score}) + distance_score ({distance_score}) + latency_score ({latency_score}) ")
 
             final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + distance_score + latency_score
             final_score_scaled = round( ( cpu_score_scaled + ram_score_scaled + disk_score_scaled + iops_score_scaled + bw_score_scaled + latency_score_scaled ) / 6, 2)
@@ -2516,11 +3315,11 @@ async def get_closest_device():
 
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f"final_score = {final_score}")
-                logger.debug(f"final_score2 = {final_score2}")
-                logger.debug(f"final_score2_scaled = {final_score_scaled }")
-                logger.debug("")
-                logger.debug("")
+                loguru.logger.debug(f"final_score = {final_score}")
+                loguru.logger.debug(f"final_score2 = {final_score2}")
+                loguru.logger.debug(f"final_score2_scaled = {final_score_scaled }")
+                loguru.logger.debug("")
+                loguru.logger.debug("")
 
 ##            debug_modee = 0
 ##            if debug_modee == 1:
@@ -2594,7 +3393,7 @@ async def get_closest_device():
             ffinal_score = final_score_scaled
             debug_modee = 1
             if debug_modee == 1:
-                logger.debug(f">>> Final score: {ffinal_score}")
+                loguru.logger.debug(f">>> Final score: {ffinal_score}")
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -2612,9 +3411,9 @@ async def get_closest_device():
 
             debug_modee = 0
             if debug_modee == 1:
-                logger.debug(f"value_device_type:{value_device_type}")
-                logger.debug(f"device_type:{device_type}")
-                logger.debug(closest_devices)
+                loguru.logger.debug(f"value_device_type:{value_device_type}")
+                loguru.logger.debug(f"device_type:{device_type}")
+                loguru.logger.debug(closest_devices)
 
             if device_type in closest_devices:
                 if ffinal_score > max_score[device_type]:
@@ -2629,7 +3428,7 @@ async def get_closest_device():
     my_closest_edge_name_is = closest_devices['EdgeServer'][14]
     
     # Render the HTML with tables and the map
-    return render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all)
+    return render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all,all_data_html_1, all_data_html_2,all_data_html_3, all_data_html_4)
 
 
 
@@ -2649,20 +3448,21 @@ if __name__ == "__main__":
 
     current_version = '1.0'
 
-    logger.info("")
+    loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day",level=MY_LOG_LEVEL)
+    loguru.logger.info("")
 
-    logger.info("+————————————————————————————————————————————+")
-    logger.info(f"| UOCv{current_version} running at: http://{args.host}:{args.port}/ |")
-    logger.info("+————————————————————————————————————————————+")
-    logger.info("")
+    loguru.logger.info("+————————————————————————————————————————————+")
+    loguru.logger.info(f"| UOCv{current_version} running at: http://{args.host}:{args.port}/ |")
+    loguru.logger.info("+————————————————————————————————————————————+")
+    loguru.logger.info("")
 
-    logger.debug("Command line args:")
-    logger.debug(f" + Host      : {args.host}")
-    logger.debug(f" + Port      : {args.port}")
-    logger.debug(f" + Reload    : {args.reload}")
-    logger.debug(f" + Log level : {args.log_level}")
-    logger.debug(f" + Log file  : {LOG_FILE}")
-    logger.debug("")
+    loguru.logger.debug("Command line args:")
+    loguru.logger.debug(f" + Host      : {args.host}")
+    loguru.logger.debug(f" + Port      : {args.port}")
+    loguru.logger.debug(f" + Reload    : {args.reload}")
+    loguru.logger.debug(f" + Log level : {args.log_level}")
+    loguru.logger.debug(f" + Log file  : {LOG_FILE}")
+    loguru.logger.debug("")
 
     if use_random_values == 1: ### We use random values
         logger.warning(f"!! Using random values !! ")
