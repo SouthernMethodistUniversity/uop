@@ -1,7 +1,13 @@
 ##
-## UOP v1.1
+## UOP v1.2
 ##
 ## Change Log:
+##
+## v1.2:
+##
+## - New algorithm: +1 -1 ... all with all
+## - Weights
+##
 ##
 ## v1.1:
 ## - Change logger to loguru ( no impacts )
@@ -68,15 +74,14 @@ from pathlib import Path
 # Third-Party Libraries
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from folium import Map, plugins
 from folium.plugins import MarkerCluster
 from haversine import haversine
 import numpy as np
-from openpyxl import load_workbook
-from openpyxl import Workbook
+from openpyxl import load_workbook, Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, NamedStyle,Protection
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 import pandas as pd
 import tabulate
 import uvicorn
@@ -86,14 +91,17 @@ import uvicorn
 app = FastAPI()
 
 
+## Serve static files in html fodler 
+##app.mount("/html", StaticFiles(directory="html"), name="html")
+
+
 
 ## Arguments ##################################################################
 # Define command-line arguments
-parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.1")
+parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.2")
 parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
 parser.add_argument("--port", type=int, default=8181, help="Port number")
 parser.add_argument("--reload", action="store_true", default=True, help="Enable auto-reload")
-#parser.add_argument("--log-level", type=str, default="debug", help="Logging level")
 parser.add_argument("--log-level", type=str, default="debug", choices=["debug", "info", "warning", "error", "critical"], help="Logging level")
 
 # Parse arguments
@@ -140,9 +148,6 @@ log_formatter = colorlog.ColoredFormatter(
     "%(log_color)s%(levelname)-8s%(reset)s %(message)s",  
     log_colors=log_colors,
 )
-
-# Log formatter for file output (no colors)
-file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
 # Console handler (prints logs to the screen)
 console_handler = logging.StreamHandler()
@@ -201,7 +206,7 @@ os.makedirs(output_html, exist_ok=True)
 # Coordinates of your position
 my_location = (32.841362, -96.784582) # SMU Dallas Campus
 
-map_center = (32.78130935199716, -96.81876935286627)  # New center for the map
+#map_center = (32.78130935199716, -96.81876935286627)  # New center for the map
 
 arlington_coords = (32.73821052933643, -97.11275695630508) # Arlington National DC
 utsw_coords  = (32.817195, -96.843869) ## UTSW Medical Center Dallas // W1225536259
@@ -217,9 +222,16 @@ all_data_html_3 = ""
 all_data_html_4 = ""
 
 
+
 ## Some variables #############################################################
-my_closest_edge_is = ()
 my_closest_fard_edge_is = ()
+my_closest_fard_edge_is2 = ()
+
+my_closest_fard_edge_name_is2 = None
+my_closest_edge_name_is2 = None
+my_closest_fard_edge_name_is3 = None
+my_closest_edge_name_is3 = None
+
 
 
 #############################################
@@ -227,32 +239,32 @@ my_closest_fard_edge_is = ()
 use_random_values = 1
 #############################################
 
-# CPU variables
-cpu_min_value = 10.0
-cpu_max_value = 95.0
-cpu_min_thresold_value = 20.0
-cpu_max_thresold_value = 90.0
+# CPU variables ------------------------------------------------
+#cpu_min_value = 10.0
+#cpu_max_value = 95.0
+#cpu_min_thresold_value = 20.0
+#cpu_max_thresold_value = 90.0
 cpu_min_value_cnf_deployed = 70
 cpu_max_value_cnf_deployed = 95
 cpu_min_value_cnf_not_deployed = 10
 cpu_max_value_cnf_not_deployed = 50
 
-# Memory variables
-mem_min_value = 10.0
-mem_max_value = 95.0
-mem_min_thresold_value = 0.10
-mem_max_thresold_value = 0.70
+# Memory variables ---------------------------------------------
+#mem_min_value = 10.0
+#mem_max_value = 95.0
+#mem_min_thresold_value = 0.10
+#mem_max_thresold_value = 0.70
 mem_min_value_cnf_deployed = 0.10
 mem_max_value_cnf_deployed = 0.30
 mem_min_value_cnf_not_deployed = 0.70
 mem_max_value_cnf_not_deployed = 0.85
 
-# Disk variables
-disk_min_value = 1
+# Disk variables -----------------------------------------------
+#disk_min_value = 1
 disk_max_value = 4
 disk_max_value2 = 4.000
-disk_min_thresold_value = 5.0
-disk_max_thresold_value = 75.0
+#disk_min_thresold_value = 5.0
+#disk_max_thresold_value = 75.0
 disk_min_value_cnf_deployed = 0.10
 disk_max_value_cnf_deployed = 0.40
 disk_min_value_cnf_not_deployed = 0.70
@@ -264,7 +276,7 @@ disk_max_value_cnf_not_deployed = 0.85
 iops_min_value = 100000
 iops_max_value = 1500000
 
-# Bandwith
+# Bandwith -----------------------------------------------------
 #Range: 
 # 1000-25000Mbps 
 # 1-25Gbps
@@ -272,105 +284,28 @@ iops_max_value = 1500000
 bw_min_value = 1.00
 bw_max_value = 25.00
 
-# Latency ------------------
+# Latency ------------------------------------------------------
 #latency_min_value = 0.00
 #latency_max_value = 0.1
 latency_min_value = 0.0
 latency_max_value = 1000.0
 
 
-
-## Score info  __________________________________________
-##
-## CPU Usage:
-## - Values between 0 and 100.
-## - A higher value, less score
-## RAM free:
-## - Values between 0 and 100
-## - A higher value, more score
-## Disk free:.
-## - Values between 0 and 100
-## - A higher value, more score
-## IOPS ( Input/Output Operations Per Second ):
-## - HDD: ~100-200 IOPS
-## - SSD SATA: ~5,000-50,000 IOPS
-## - SSD NVMe: ~100,000+ IOPS
-## - Values between 0 and 1000000
-## - A higher value, more score
-## Bandwith (Gbps):
-## - Values between 0 and 1000
-## - A higher value, more score
-## Distance:
-## - Values between 0 and 1000
-## - A higher value, less score
-## Latency (it should be proportional to Distance... or not)
-## - A higher value, less score
-## 
-##
-## partial_scores:
-## cpu_score  		= cpu_weight  		× ( 1 − [ CPU_Usage_value/cpu_div ] )  # Inverted because higher value is worse
-## ram_score  		= ram_weight  		× [ Ram_Free_value/ram_div ] 
-## disk_score 		= disk_weight 		× [ Disk_Free_value/ram_div ] 
-## iops_score 		= iops_weight 		× [ iops_value/iops_div ] 
-## bw_score        = bw_weight   		× [ bw_value/bw_div ] 
-## distance_score  = distance_weight  	× ( 1 − [ Distance_value/distance_div ] )  # Inverted because higher value is worse
-## latency_score   = latency_weight  	× ( 1 − [ Distance_value/latency_div ] )  # Inverted because higher value is worse
-## 
-## final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + distance_score + latency_score
-## final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + latency_score
-## 
-## Where:
-## 
-## cpu_weight, ram_weight, disk_weight, iops_weight, bw_weight, distance_weight, latency_weight:
-## are the weights you assign to each variable based on its relative importance.
-## 
-## For normalize:
-## cpu_div  	 = 100
-## ram_div   	 = 100
-## disk_div 	 = 100
-## iops_div   	 = 100
-## bw_div   	 = 1000
-## distance_div = 100 
-## latency_div  = 100
-## 
-## 
-## CPU Usage: Inverted because a lower value is better. It is normalized by dividing by 100.
-## 
-## RAM Free, Disk Free, IOPS, Bandwidth, Distance: These are normalized to their respective maximum values.
-## 
-## Latency: Inverted because a lower value is better. It is normalized by dividing by 100
-## 
-## Weighting Flexibility:
-## The final score value will depend on the weights assigned. If you want to give more importance to RAM free than CPU usage, you can assign a higher weight to RAM.
-##
-## Extra score?
-##
-## +1 if Vendor is WRCP, 0 if RHOCP:   
-## +1 if the server type is HPE, 0 if Dell
-## +1 if no network function is deployed, 0 if it is deployed
-##
-## to increase the score when:
-## + Vendor is WRCP (higher score) over RHOCP.
-## + Manufacturer is HPE (higher score) over Dell.
-## + NF already deployed (higher score) over NF not deployed.
-## We can add weighted bonus points for these conditions.
-
-
-# Weight
+# Weight -------------------------------------------------------
 cpu_weight = 1
 ram_weight = 1
-disk_weight = 1
-iops_weight = 1
+disk_weight = 0.25
+iops_weight = 0.5
 bw_weight = 1
 distance_weight = 1
 latency_weight = 1
 
-manufacturer_weight = 1
-platform_weight = 1
-deployed_cnf_weight = 1
+#manufacturer_weight = 1
+#platform_weight = 1
+#deployed_cnf_weight = 1
 
 
-# Div (normalize) 
+# Div (normalize)  
 cpu_div  	 = 100
 #cpu_div  	 = cpu_max_value 
 ram_div   	 = 100
@@ -390,7 +325,7 @@ latency_div  = 100
 ## | Aux Functions                                      | 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-def print_table(data, role_name):
+def print_table(data, role_name,headers):
     """Print tables in tabular format"""
     table_data = [[d[col] for col in headers] for d in data]
 
@@ -398,22 +333,33 @@ def print_table(data, role_name):
     print(tabulate.tabulate(table_data, headers=headers, tablefmt="grid"))
 
 
+
 def get_best_edge_server(data):
-    """Select best server in the list"""
-    # Initialization
+    """Select the best server in the list based on total_score, cpu_usage, and cpu_score + ram_score."""
     best_server = None
-    
+
     for server in data:
-        # Si no hay un servidor seleccionado o encontramos uno con mejor total_score o cpu_usage
-        if best_server is None or server['total_score'] > best_server['total_score'] or (server['total_score'] == best_server['total_score'] and server['cpu_usage'] > best_server['cpu_usage']):
+        if best_server is None:
             best_server = server
-    
-    # Devolver el servidor con el mejor score
-    return [best_server]
+        else:
+            if server['total_score'] > best_server['total_score']:
+                best_server = server
+            elif server['total_score'] == best_server['total_score']:
+                # Si tienen el mismo total_score, priorizar mayor cpu_usage
+                if (server['cpu_score'] + server['ram_score']) > (best_server['cpu_score'] + best_server['ram_score']):
+                    best_server = server
+
+    return [best_server] if best_server else []
+
 
 
 def get_random_value_in_db():
     """Random values for CNF, CPU, Mem, Disk, BW, IOPS."""
+
+    global my_closest_fard_edge_name_is2
+    global my_closest_edge_name_is2
+    global my_closest_fard_edge_name_is3
+    global my_closest_edge_name_is3
 
     # Connect to the SQLite database
     loguru.logger.debug(f"Trying to connect to database ...")
@@ -457,7 +403,8 @@ def get_random_value_in_db():
             "diskava_value": None, "iops_value": None, "bw_value": None, "disktot_value": 4,
             "region": row[0], "site": row[1], "uuid": row[2], "status": row[3], "manufacturer": row[13],
             "platform": row[14], "cluster": row[15], "location": row[16], "shortname": row[17], 
-            "type": row[18], "long": row[19], "lat": row[20]
+            "type": row[18], "lat": row[19], "long": row[20],
+            "distance": 0.00, "latency": 0.00
         })
 
     loguru.logger.debug(f"Loaded {len(devices)} devices from the database.")
@@ -467,16 +414,17 @@ def get_random_value_in_db():
         role = device["Role"]
         device["cnf_value"] = '1' if role == 'FEServer' else random.choice(['0', '1'])
         
-        # CPU value
+        # CPU value -------------------------------------------------------------------------------
         if device["cnf_value"] == '1':
             device["cpu_usage"] = round(random.uniform(cpu_min_value_cnf_deployed, cpu_max_value_cnf_deployed), 2)
         else:
             device["cpu_usage"] = round(random.uniform(cpu_min_value_cnf_not_deployed, cpu_max_value_cnf_not_deployed), 2)
+
         
-        # RAM total
+        # RAM total -------------------------------------------------------------------------------
         device["ramtot_value"] = 128 if role == 'FEServer' else random.choice([192, 256, 320])
 
-        # Ram available
+        # Ram available ---------------------------------------------------------------------------
 #        min_ramava = round(mem_min_thresold_value * device["ramtot_value"], 2)
 #        max_ramava = round(mem_max_thresold_value * device["ramtot_value"], 2)
 
@@ -487,11 +435,10 @@ def get_random_value_in_db():
             min_ramava = round(mem_min_value_cnf_not_deployed * device["ramtot_value"], 2)
             max_ramava = round(mem_max_value_cnf_not_deployed * device["ramtot_value"], 2)
     
-
         device["ramava_value"] = round(random.uniform(min_ramava, max_ramava), 2)
        
 
-        # Disk total
+        # Disk total ------------------------------------------------------------------------------
         device["disktot_value"] = disk_max_value
 
         # Disk available
@@ -505,18 +452,18 @@ def get_random_value_in_db():
             min_diskava = round(disk_min_value_cnf_not_deployed * device["disktot_value"], 2)  # 10% de 4 = 0.4
             max_diskava = round(disk_max_value_cnf_not_deployed * device["disktot_value"], 2)  # 40% de 4 = 1.6
         
-
 #        device["diskava_value"] = round(random.uniform(disk_min_value, disk_max_value), 2)
         device["diskava_value"] = round(random.uniform(min_diskava, max_diskava), 2)
 
 
-        device["bw_value"] = round(random.uniform(bw_min_value, bw_max_value),2)
+        # BW --------------------------------------------------------------------------------------
+        device["bw_value"] = round(random.uniform(bw_min_value, bw_max_value),2) 
 
 
     loguru.logger.debug(f"First pass completed: Random values generated.")
 
     # Sort devices by CNF and CPU usage
-    devices.sort(key=lambda d: (d["Role"],d["cnf_value"], d["cpu_usage"], d["ramava_value"], d["diskava_value"]))
+#    devices.sort(key=lambda d: (d["Role"],d["cnf_value"], d["cpu_usage"], d["ramava_value"], d["diskava_value"]))
 
     # Generate unique decreasing IOPS values
     num_devices = len(devices)
@@ -536,16 +483,37 @@ def get_random_value_in_db():
 
     loguru.logger.debug(f"Disk availability values validated.")
 
+
     debug_modee = 1    
     if debug_modee == 1:
-        headers = ["id", "cnf_value", "cpu_usage", "ramfree_value", "diskfree_value", "iops_value", "bw_value", "role"]
+        headers = ["id", "cnf_value", "cpu_usage", "ramfree_value", "diskfree_value", "iops_value", "bw_value", "role", "distance", "latency"]
 
         table = []
         
         for device in [d for d in devices if '_CUUP' not in d['id'] or d['Role'] != 'CoreServer']:
-
             my_ramfree_value = round((device['ramava_value']/device['ramtot_value'])*100,2)
             my_diskfree_value = round((device['diskava_value']/device['disktot_value'])*100,2)
+
+            current_device_long3 = device['long']
+            current_device_lat3 = device['lat']
+
+            device_location3 = (current_device_lat3, current_device_long3)
+            
+            # Coordinates of your position
+            #my_location = (32.841362, -96.784582) # SMU Dallas Campus
+            
+            # Calculate distance: SMU to current FarEdge
+            distance3 = round(haversine(my_location, device_location3), 2)
+
+            ### Latency ---------------------------------------------------------------------------
+            ### 200,000 km/s (124,000 miles per second)
+            ### latency (ms) = [ distance in miles ] / [ 124 ]
+#            latency =  round((distance / 124), 4)
+            #latency =  round((distance / 200), 4)
+            latency3 =  round((distance3 * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            device['distance'] = distance3
+            device['latency'] = latency3
 
             table.append([
                 device['id'],
@@ -555,7 +523,9 @@ def get_random_value_in_db():
                 my_diskfree_value,
                 device['iops_value'],
                 device['bw_value'],
-                device['Role']
+                device['Role'],
+                distance3,
+                latency3
             ])
 
 
@@ -596,7 +566,8 @@ def get_random_value_in_db():
             
             # Calculate the cpu_score by comparing each device's cpu_usage with others
             #cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
-            cpu_score = corrected_num
+#            cpu_score = corrected_num
+            cpu_score = corrected_num * cpu_weight
             
             # Log the cpu_score result
             loguru.logger.debug(f"Device {device['id']} - cpu_score calculated: {cpu_score}")
@@ -620,7 +591,8 @@ def get_random_value_in_db():
             
             # Calculate the ram_score by comparing each device's ramfree_value with others
             #ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
-            ram_score = corrected_num
+#            ram_score = corrected_num
+            ram_score = corrected_num * ram_weight
             
             # Log the ram_score result
             loguru.logger.debug(f"Device {device['id']} - ramfree_value calculated: {ram_score}")
@@ -643,7 +615,8 @@ def get_random_value_in_db():
             
             # Calculate the disk_score by comparing each device's diskfree_value with others
             #disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
-            disk_score = corrected_num
+#            disk_score = corrected_num
+            disk_score = corrected_num * disk_weight
             
             # Log the disk_score result
             loguru.logger.debug(f"Device {device['id']} - diskfree_value calculated: {disk_score}")
@@ -667,7 +640,8 @@ def get_random_value_in_db():
             
             # Calculate the iops_score by comparing each device's iops_value with others
             #iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
-            iops_score = corrected_num
+#            iops_score = corrected_num
+            iops_score = corrected_num * iops_weight
             
             # Log the iops_score result
             loguru.logger.debug(f"Device {device['id']} - iops_value calculated: {iops_score}")
@@ -690,13 +664,40 @@ def get_random_value_in_db():
             
             # Calculate the bw_score by comparing each device's bw_value with others
             #bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
-            bw_score = corrected_num
+#            bw_score = corrected_num
+            bw_score = corrected_num * bw_weight
             
             # Log the bw_score result
             loguru.logger.debug(f"Device {device['id']} - bw_value calculated: {bw_score}")
 
 
-            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+#############latency_score = sum(1 if device["latency"] > other["latency"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with latency {device['latency']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'FEServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["latency"] < other["latency"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the latency_score by comparing each device's latency with others
+            #latency_score = sum(1 if device["latency"] > other["latency"] else -1 for other in devices if device != other)
+#            latency_score = corrected_num
+            latency_score = corrected_num * latency_weight
+            
+            # Log the latency_score result
+            loguru.logger.debug(f"Device {device['id']} - latency calculated: {latency_score}")
+
+
+#            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score + latency_score # Sum of all scores
 
 
             score_data.append({
@@ -716,6 +717,8 @@ def get_random_value_in_db():
                 "iops_score" : iops_score,
                 "bw_value" : device['bw_value'],
                 "bw_score" : bw_score,
+                "latency_value" : device['latency'],
+                "latency_score" : latency_score,
                 "total_score" : total_score,
                 "manufacturer" : device['manufacturer'],
                 "platform" : device['platform'],
@@ -724,16 +727,53 @@ def get_random_value_in_db():
                 "location" : device['location'],
                 "type": device['type'],
                 "long": device['long'],
-                "lat": device['lat']
+                "lat": device['lat'],
+                "distance" : device['distance']
             })
 
+        # ____________________________________________________________________
+        # Find the best FarEdge Server +++++++++++++++++++++++++++++++++++++++
 
+        # Filter data by roles
+        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
+
+        best_server_faredge = get_best_edge_server(fe_server_data)
+
+        # Take coordinates of closest FarEdge server
+        latitude_fe2 = best_server_faredge[0]['lat']
+        longitude_fe2 = best_server_faredge[0]['long']
+    
+        my_closest_fard_edge_is2 = (latitude_fe2,longitude_fe2)
+        my_closest_fard_edge_name_is2 = best_server_faredge[0]['cluster']
+        my_closest_fard_edge_name_is3 = best_server_faredge[0]['site']
+        
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         for device in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
 
             debug_modee = 0
             if debug_modee == 1:
                 print(f"device_EdgeServer:{device}")
+
+
+            current_device_long = device['long']
+            current_device_lat = device['lat']
+
+            device_location2 = (current_device_lat, current_device_long)
+            
+            # Calculate distance
+            distance2 = round(haversine(my_closest_fard_edge_is2, device_location2), 2)
+
+            ### Latency ---------------------------------------------------------------------------
+            ### 200,000 km/s (124,000 miles per second)
+            ### latency (ms) = [ distance in miles ] / [ 124 ]
+#            latency =  round((distance / 124), 4)
+            #latency =  round((distance / 200), 4)
+            latency2 =  round((distance2 * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            device['distance'] = distance2
+            device['latency'] = latency2
+
                 
 ############cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
 
@@ -754,7 +794,8 @@ def get_random_value_in_db():
             
             # Calculate the cpu_score by comparing each device's cpu_usage with others
             #cpu_score = sum(1 if device["cpu_usage"] < other["cpu_usage"] else -1 for other in devices if device != other)
-            cpu_score = corrected_num
+#            cpu_score = corrected_num
+            cpu_score = corrected_num * cpu_weight
             
             # Log the cpu_score result
             loguru.logger.debug(f"Device {device['id']} - cpu_score calculated: {cpu_score}")
@@ -778,7 +819,8 @@ def get_random_value_in_db():
             
             # Calculate the ram_score by comparing each device's ramfree_value with others
             #ram_score = sum(1 if device["ramfree_value"] > other["ramfree_value"] else -1 for other in devices if device != other)
-            ram_score = corrected_num
+#            ram_score = corrected_num
+            ram_score = corrected_num * ram_weight
             
             # Log the ram_score result
             loguru.logger.debug(f"Device {device['id']} - ramfree_value calculated: {ram_score}")
@@ -801,7 +843,8 @@ def get_random_value_in_db():
             
             # Calculate the disk_score by comparing each device's diskfree_value with others
             #disk_score = sum(1 if device["diskfree_value"] > other["diskfree_value"] else -1 for other in devices if device != other)
-            disk_score = corrected_num
+#            disk_score = corrected_num
+            disk_score = corrected_num * disk_weight
             
             # Log the disk_score result
             loguru.logger.debug(f"Device {device['id']} - diskfree_value calculated: {disk_score}")
@@ -825,10 +868,12 @@ def get_random_value_in_db():
             
             # Calculate the iops_score by comparing each device's iops_value with others
             #iops_score = sum(1 if device["iops_value"] > other["iops_value"] else -1 for other in devices if device != other)
-            iops_score = corrected_num
+#            iops_score = corrected_num
+            iops_score = corrected_num * iops_weight
             
             # Log the iops_score result
             loguru.logger.debug(f"Device {device['id']} - iops_value calculated: {iops_score}")
+
 
 #############bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
             loguru.logger.debug(f"Calculating score for device {device['id']} with bw_value {device['bw_value']}")
@@ -848,13 +893,41 @@ def get_random_value_in_db():
             
             # Calculate the bw_score by comparing each device's bw_value with others
             #bw_score = sum(1 if device["bw_value"] > other["bw_value"] else -1 for other in devices if device != other)
-            bw_score = corrected_num
+#            bw_score = corrected_num
+            bw_score = corrected_num * bw_weight
             
             # Log the bw_score result
             loguru.logger.debug(f"Device {device['id']} - bw_value calculated: {bw_score}")
 
 
-            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+#############latency_score = sum(1 if device["latency"] > other["latency"] else -1 for other in devices if device != other)
+            loguru.logger.debug(f"Calculating score for device {device['id']} with latency {device['latency']}")
+            
+            # Calculate the "corrected" value (comparison between all devices)
+            comparisons = []
+            for other in [d for d in devices if d['Role'] == 'EdgeServer' and ('_CUUP' not in d['id'] ) ]:
+                if device != other:
+                    comparisons.append(1 if device["latency"] < other["latency"] else -1)
+            
+            # Format the corrected sum as a string for display
+            corrected = " + ".join([str(val) for val in comparisons])  # Sum format
+            corrected_num = sum(comparisons)  # Actual sum to get the corrected value
+            
+            # Log the corrected sum and its result
+            loguru.logger.debug(f"Device {device['id']} - Corrected: {corrected} = {corrected_num}")
+            
+            # Calculate the latency_score by comparing each device's latency with others
+            #latency_score = sum(1 if device["latency"] > other["latency"] else -1 for other in devices if device != other)
+#            latency_score = corrected_num
+            latency_score = corrected_num * latency_weight
+            
+            # Log the latency_score result
+            loguru.logger.debug(f"Device {device['id']} - latency calculated: {latency_score}")
+
+
+#            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score  # Sum of all scores
+            total_score = cpu_score + ram_score + disk_score + iops_score + bw_score + latency_score # Sum of all scores
+
 
             score_data.append({
                 "region" : device['region'],
@@ -873,6 +946,8 @@ def get_random_value_in_db():
                 "iops_score" : iops_score,
                 "bw_value" : device['bw_value'],
                 "bw_score" : bw_score,
+                "latency_value" : device['latency'],
+                "latency_score" : latency_score,
                 "total_score" : total_score,
                 "manufacturer" : device['manufacturer'],
                 "platform" : device['platform'],
@@ -881,15 +956,14 @@ def get_random_value_in_db():
                 "location" : device['location'],
                 "type": device['type'],
                 "long": device['long'],
-                "lat": device['lat']
+                "lat": device['lat'],
+                "distance" : device['distance']
             })
 
 
         # Filter data by roles
         edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
-        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
-
-
+        
         headers = [
                 "region",
                 "site",
@@ -907,6 +981,8 @@ def get_random_value_in_db():
                 "iops_score",
                 "bw_value",
                 "bw_score",
+                "latency_value",
+                "latency_score",
                 "total_score",
                 "manufacturer",
                 "platform",
@@ -915,21 +991,15 @@ def get_random_value_in_db():
                 "shortname",
                 "type",
                 "long",
-                "lat"
+                "lat",
+                "distance"
             ]
-
-
-
-        # Filter by roles 
-        edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
-        fe_server_data = [d for d in score_data if d['role'] == 'FEServer']
-
 
         debug_modee = 0
         if debug_modee == 1:
             # Show tables in console output ( for debug )
-            print_table(edge_server_data, 'EdgeServer')
-            print_table(fe_server_data, 'FEServer')
+            print_table(edge_server_data, 'EdgeServer',headers)
+            print_table(fe_server_data, 'FEServer',headers)
 
  
         debug_modee = 0
@@ -937,21 +1007,6 @@ def get_random_value_in_db():
             print(edge_server_data)
 
 
-        # ____________________________________________________________________
-        # Find the best Edge Server +++++++++++++++++++++++++++++++++++++++
-        best_server_edge = get_best_edge_server(edge_server_data)
-        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-        # Show best Edge Server
-        debug_modee = 0    
-        if debug_modee == 1:
-            print(best_server_edge)
-
-
-        debug_modee = 0
-        if debug_modee == 1:
-            # Show tables in console output ( for debug )
-            print_table(best_server_edge, 'BestEdgeServer')
 
         # ____________________________________________________________________
         # Find the best FarEdge Server +++++++++++++++++++++++++++++++++++++++
@@ -967,18 +1022,51 @@ def get_random_value_in_db():
         debug_modee = 0
         if debug_modee == 1:
             # Show tables in console output ( for debug )
-            print_table(best_server_faredge, 'BestFarEdgeServer')
+            print_table(best_server_faredge, 'BestFarEdgeServer',headers)
 
 
 
+        # ____________________________________________________________________
+        # Find the best Edge Server +++++++++++++++++++++++++++++++++++++++
+        best_server_edge = get_best_edge_server(edge_server_data)
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        my_closest_edge_name_is2 = best_server_edge[0]['cluster']
+        my_closest_edge_name_is3 = best_server_edge[0]['site']
+
+        # Show best Edge Server
+        debug_modee = 0    
+        if debug_modee == 1:
+            print(best_server_edge)
+
+
+        debug_modee = 0
+        if debug_modee == 1:
+            # Show tables in console output ( for debug )
+            print_table(best_server_edge, 'BestEdgeServer',headers)
+
+
+
+        # ___________________________________________________________________
         # HTML---------------------------------------------------------------
+        # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         # Function to generate tables with the headers and data
-        def generate_table(role, data, color):
+        def generate_table(role, data, color, my_case):
             html = ""
             html += "<table class='data-table'><tr>"
             
-
+            match my_case: 
+                case 0: # SMU          <-> FarEdge
+                    label_for_column = "Latency (&microsec) | 3.4"
+                case 1: # Best FarEdge <-> Edge
+                    label_for_column = "Latency (&microsec) | 5"
+                case 2: # Best FarEdge/Edge
+                    label_for_column = "Latency (&microsec)"
+                case 3: # Best FarEdge/Edge
+                    label_for_column = "Latency (&microsec)"
+                
+    
             headers = [
                 "Region",
                 "Site",
@@ -996,6 +1084,8 @@ def get_random_value_in_db():
                 "IOPS Score",
                 "BW (Gbps)",
                 "BW Score",
+                label_for_column,                
+                "Latency Score",
                 "TOTAL SCORE",
                 "Manufacturer",
                 "Platform",
@@ -1004,9 +1094,9 @@ def get_random_value_in_db():
                 "ShortName",
                 "Type",
                 "Latitude",
-                "Longitude"
+                "Longitude",
+                "Distance"
                 ]
-    
 
 
             row_class = ""
@@ -1014,31 +1104,26 @@ def get_random_value_in_db():
             edge_color = "#ffff99"  # Light yellow for EdgeServer
             fe_color = "#ffcc99"  # Light orange for FEServer
             
-            if color == 0:
-                prefix_htlm = "<tr>"
-            elif color == 1: ## FarEdge
-                row_class = f"style='background-color: {fe_color};'"
-                prefix_htlm = f"<tr {row_class}>"
-            elif color == 2: ## Edge
-                row_class = f"style='background-color: {edge_color};'"
-                prefix_htlm = f"<tr {row_class}>"
-            
-        
-            # Table headers
             html += "".join([f"<th>{header}</th>" for header in headers])
             html += "</tr>"
+
+            total_score_style = "background-color: #ffe5cc; border: 1px solid black;"  # Naranja muy claro + borde suave
+
             
             # Adding rows with the device data
             for device in data:
                 
-                if color == 0:
-                
-                    if role == 'FEServer': ## FarEdge
-                        row_class = f"style='background-color: {fe_color};'" if device in (best_server_faredge) else ""
-                    elif role == 'EdgeServer': ## Edge
-                        row_class = f"style='background-color: {edge_color};'" if device in (best_server_edge) else ""
-
-                    prefix_htlm = f"<tr {row_class}>"
+                if role == 'FEServer': ## FarEdge
+                    row_class = f"style='background-color: {fe_color};'" if device in (best_server_faredge) else ""
+                elif role == 'EdgeServer': ## Edge
+                    row_class = f"style='background-color: {edge_color};'" if device in (best_server_edge) else ""
+                elif role == 'BestFarEdgeServer':
+                    if device['role'] == 'FEServer':
+                        row_class = f"style='background-color: {fe_color};'"# if device in (best_server_faredge) else ""
+                    elif device['role'] == 'EdgeServer':
+                        row_class = f"style='background-color: {edge_color};'" #if device in (best_server_edge) else ""
+                    
+                prefix_htlm = f"<tr {row_class}>"
 
 
                 html += prefix_htlm
@@ -1054,11 +1139,13 @@ def get_random_value_in_db():
                 html += f"<td>{device['ram_score']}</td>"
                 html += f"<td>{device['diskfree_value']}</td>"
                 html += f"<td>{device['disk_score']}</td>"
-                html += f"<td>{device['iops_value']}</td>"
+                html += f"<td>{device['iops_value']:,}</td>"
                 html += f"<td>{device['iops_score']}</td>"
                 html += f"<td>{device['bw_value']}</td>"
                 html += f"<td>{device['bw_score']}</td>"
-                html += f"<td>{device['total_score']}</td>"
+                html += f"<td>{device['latency_value']}</td>"
+                html += f"<td>{device['latency_score']}</td>"
+                html += f"<td style='{total_score_style}'>{device['total_score']}</td>"
                 html += f"<td>{device['manufacturer']}</td>"
                 html += f"<td>{device['platform']}</td>"
                 html += f"<td>{device['cluster']}</td>"
@@ -1067,81 +1154,89 @@ def get_random_value_in_db():
                 html += f"<td>{device['type']}</td>"
                 html += f"<td>{device['long']}</td>"
                 html += f"<td>{device['lat']}</td>"
+                html += f"<td>{device['distance']}</td>"
                 html += "</tr>"
             
             html += "</table>"
             return html
 
+
+        # ------------------------------------------------------------------------ #
+        # Distance from 'SMU Dallas Campus' to 'Far Edge' sites:
+        # ------------------------------------------------------------------------ #
+
         # Starting the HTML output with the header section
         all_data_html_1 = "<hr>"
         all_data_html_1 += f"""
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Data 'EdgeServer' algorithm#2: *********************</h2>
+            <h2>Scoring __FarEdge__ sites ( from 'SMU Dallas Campus' to 'Far Edge' sites ): *</h2>
             <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
         </div>
         """
 
         # Generate HTML tables for both roles
-        all_data_html_1 += generate_table('EdgeServer', edge_server_data, 0)
+        all_data_html_1 += "<hr>"
+        all_data_html_1 += generate_table('FEServer', fe_server_data, 0, 0)
 
         debug_modee = 0    
         if debug_modee == 1:
             print(f"all_data_html_1:{all_data_html_1}")
 
+
+
+        # ------------------------------------------------------------------------ #
+        # Distance from '<closest FE>' FarEdge to EdgeDC sites:
+        # ------------------------------------------------------------------------ #
+
         all_data_html_2 = "<hr>"
+        fe_color = "#ffcc99"  # Light orange for FEServer
+        
         all_data_html_2 += f"""
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Data 'FEServer' algorithm#2: *********************</h2>
+            <h2>Scoring __Edge__ sites ( from '<span style="background-color: {fe_color}; color: black; padding: 2px 5px; border-radius: 4px;">
+                {my_closest_fard_edge_name_is2}
+            </span>' FarEdge to EdgeDC sites):**</h2>
             <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
         </div>
         """
-        all_data_html_2 += generate_table('FEServer', fe_server_data, 0)
+
+
+        all_data_html_2 += generate_table('EdgeServer', edge_server_data, 0, 1)
 
         debug_modee = 0    
         if debug_modee == 1:
             print(f"all_data_html_2:{all_data_html_2}")
         
 
+
+        # ------------------------------------------------------------------------ #
+        # Summary Best FarEdge/Edge sites:
+        # ------------------------------------------------------------------------ #
+
         # Starting the HTML output with the header section
         all_data_html_3 = "<hr>"
         all_data_html_3 += f"""
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Data 'BestFarEdgeServer' algorithm#2: *********************</h2>
+            <h2>Summary best sites:***</h2>
             <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
         </div>
         """
 
+        summary_best_servers = best_server_faredge + best_server_edge
+
+
         # Generate HTML tables for both roles
-        all_data_html_3 += generate_table('BestFarEdgeServer', best_server_faredge,1)
+        all_data_html_3 += generate_table('BestFarEdgeServer', summary_best_servers,1,2)
 
         debug_modee = 0    
         if debug_modee == 1:
             print(f"all_data_html_3:{all_data_html_3}")
 
-        all_data_html_4 = "<hr>"
-        all_data_html_4 += f"""
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Data 'BestEdgeServer' algorithm#2: *********************</h2>
-            <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
-        </div>
-        """
-        all_data_html_4 += generate_table('BestEdgeServer', best_server_edge,2)
-        all_data_html_4 += "<hr>"
-        all_data_html_4 += "<hr>"
-
-        debug_modee = 0    
-        if debug_modee == 1:
-            print(f"all_data_html_4:{all_data_html_4}")
-        
-
-
-
-
 
         # EXcel---------------------------------------------------------------
 
         headers = ["id", "cpu_usage", "cpu_score", "ramfree_value", "ram_score", "diskfree_value", "disk_score",
-                   "iops_value", "iops_score", "bw_value", "bw_score", "total_score", "role"]
+                   "iops_value", "iops_score", "bw_value", "bw_score", "latency_value", "latency_score", "total_score", "role"]
 
         # Filter data by roles
         edge_server_data = [d for d in score_data if d['role'] == 'EdgeServer']
@@ -1192,20 +1287,15 @@ def get_random_value_in_db():
                 (device["cnf_value"], device["cpu_usage"], device["ramtot_value"], device["ramava_value"],
                  device["diskava_value"], device["iops_value"], device["bw_value"], device["disktot_value"], device["id"])
             )
-            
-            
-            
-            
+                     
         conn.commit()
-#        loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}", rotation="1 day")
-#        loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day")
         
         loguru.logger.info("Database updated with the new values.")
-        loguru.logger.info("but only this logs")
+
     conn.close()
 
+    return all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4, summary_best_servers, fe_server_data, edge_server_data
 
-    return all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4
 
 
 def save_html_to_file(html_content, filename=my_html_output2):
@@ -1258,6 +1348,8 @@ def execute_sql_command(command: str):
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def get_bezier_curve_points(
     start_lat_lon: tuple, end_lat_lon: tuple, control_point_position=0.5, control_point_offset=0.5, points=100) -> list:
+    """Generate curve in map """
+
     # Function to calculate intermediate points along the Bezier curve
     def bezier_curve(p0, p1, p2, n_points=100):
         t = np.linspace(0, 1, n_points)
@@ -1288,7 +1380,21 @@ def get_bezier_curve_points(
 
 
 ## Prepare GUI
-def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all,all_data_html_1, all_data_html_2,all_data_html_3, all_data_html_4):
+def render_gui(
+    all_data_with_distances,
+    closest_devices,
+    my_closest_fard_edge_name_is,
+    my_closest_edge_name_is,
+    all_data_with_distances_edge,
+    all_data_with_distances_all,
+    all_data_html_1,
+    all_data_html_2,
+    all_data_html_3,
+    all_data_html_4,
+    my_summary_best_servers,
+    my_fe_server_data,
+    my_edge_server_data
+):
     """Prepare GUI (HTML) """
 
 
@@ -1562,11 +1668,86 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
     if debug_modee == 1:
         print(f"{all_data_with_distances=}")
 
-    # Filter contents by item[5] = Role 
-    all_data_with_distances_fe = [item for item in all_data_with_distances if item[5] == 'FEServer']
+    all_tuples = []
+
+    for row in my_fe_server_data:
+        my_fe_server_data_tuple = (
+            row.get('total_score'),
+            row.get('region'),
+            row.get('site'),
+            row.get('id'),
+            row.get('status'),
+            row.get('role'),
+            row.get('cnf_value'),
+            row.get('cpu_usage'),
+            row.get('ramfree_value'),
+            row.get('diskfree_value'),
+            row.get('iops_value'),
+            row.get('bw_value'),
+            row.get('manufacturer'),
+            row.get('platform'),
+            row.get('cluster'),
+            row.get('location'),       
+            row.get('shortname'),      
+            row.get('type'),           
+            row.get('lat'),
+            row.get('long'),
+            row.get('distance'),
+            row.get('latency_value'),
+            row.get('cpu_score'),
+            row.get('ram_score'),
+            row.get('disk_score'),
+            row.get('iops_score'),
+            row.get('bw_score'),
+            row.get('latency_score'),
+            row.get('total_score')     
+        )
+        all_tuples.append(my_fe_server_data_tuple)
+        
+        
+    for row in my_edge_server_data:
+        my_edge_server_data_tuple = (
+            row.get('total_score'),
+            row.get('region'),
+            row.get('site'),
+            row.get('id'),
+            row.get('status'),
+            row.get('role'),
+            row.get('cnf_value'),
+            row.get('cpu_usage'),
+            row.get('ramfree_value'),
+            row.get('diskfree_value'),
+            row.get('iops_value'),
+            row.get('bw_value'),
+            row.get('manufacturer'),
+            row.get('platform'),
+            row.get('cluster'),
+            row.get('location'),       
+            row.get('shortname'),      
+            row.get('type'),           
+            row.get('lat'),
+            row.get('long'),
+            row.get('distance'),
+            row.get('latency_value'),
+            row.get('cpu_score'),
+            row.get('ram_score'),
+            row.get('disk_score'),
+            row.get('iops_score'),
+            row.get('bw_score'),
+            row.get('latency_score'),
+            row.get('total_score')     
+        )
+
+        all_tuples.append(my_edge_server_data_tuple)
+    
+
+    # Convertir lista a tupla si realmente necesitas que sea tipo `tuple`
+    final_combined_tuple = tuple(all_tuples)
+
+
 
     # Insert values in 'Distance_SMU_to_far_edge_table' table
-    for row in all_data_with_distances:
+    for row in final_combined_tuple:
         
         sql_query = f"""
         INSERT INTO Distance_SMU_to_far_edge_table
@@ -1585,8 +1766,18 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
         data = execute_sql_command(sql_query)
 
 
+    
+    # Define a sorting key function: FEServer comes first (0), then EdgeServer (1), and then sort by site name
+    def server_type_sort_key(row):
+        """Order by role """
+        return (0 if row[4] == 'FEServer' else 1, row[1])
+
+    # Sort the list using the custom key
+    sorted_data = sorted(all_data_with_distances_all, key=server_type_sort_key)
+
+
     # Create HTML table
-    for row in all_data_with_distances_all:
+    for row in sorted_data:
 
         # Determine row class based on closest device type
         row_class = ""
@@ -1603,257 +1794,17 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
 
         # Convert back list into tuple 
         row = tuple(row_list)
+
+        # Get the short_name for the onclick
+        short_name = row_list[15]
                 
         all_data_html += f"<tr {row_class}>" + "".join(
             [f"<td>{format(int(item), ',') if i == 9 and isinstance(item, (int, float)) else item}</td>" for i, item in enumerate(row_list)]
         ) + "</tr>"
+
+    
     
     all_data_html += "</table>"
-
-
-    # ------------------------------------------------------------------------ #
-    # Distance from 'SMU Dallas Campus' to 'Far Edge' sites:
-    # ------------------------------------------------------------------------ #
-    all_data_html += "<br>"
-    all_data_html += "<hr>"
-    all_data_html += f"""
-    <div id="distance_fard_edge" style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Distance from 'SMU Dallas Campus' to 'Far Edge' sites:</h2>
-        <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
-    </div>
-    <table class='data-table'><tr>
-    """
-    
-    # Headers for table 'SMU Dallas Campus' to 'Far Edge' sites:' 
-    headers = [
-        "Score",
-        "Region",
-        "Site",
-        "Device UUID",
-        "Status",
-        "Role",
-        "CNF",
-        "CPU Usage %",
-        "RAM free %",
-        "Disk free %",
-        "IOPS",
-        "Bandwidth (Gbps)",
-        "Manufacturer",
-        "Platform",
-        "Cluster",
-        "Location",
-        "ShortName",
-        "Type",
-        "Latitude",
-        "Longitude",
-        "Distance (km)",
-        "Latency (&microsec) | 3.4",
-        "CPU score",
-        "Mem score",
-        "Disk score",
-        "IOPS score",
-        "BW score",
-        "Latency score",
-        "Final Score"
-    ]
-    all_data_html += "".join([f"<th>{header}</th>" for header in headers])
-    all_data_html += "</tr>"
-
-    debug_modee = 0
-    if debug_modee == 1:
-        print(all_data_with_distances_fe)
-
-
-    # Create HTML table
-    for row in all_data_with_distances_fe:
-
-        # Determine row class based on closest device type
-        row_class = ""
-        if row == closest_devices.get("EdgeServer"):
-            row_class = f"style='background-color: {edge_color};'"
-        elif row == closest_devices.get("FEServer"):
-            row_class = f"style='background-color: {fe_color};'"
-        
-        cpu_score_scaled_is = row[1]
-        all_data_html += f"<tr {row_class}>" + "".join(
-            [f"<td>{format(int(item), ',') if i == 10 and isinstance(item, (int, float)) else item}</td>" for i, item in enumerate(row)]
-        ) + "</tr>"
-    
-    all_data_html += "</table>"
-
-
-    # ------------------------------------------------------------------------ #
-    # Distance from '<closest FE>' FarEdge to EdgeDC sites:
-    # ------------------------------------------------------------------------ #
-    all_data_html += "<br>"
-    all_data_html += "<hr>"
-    all_data_html += f"""
-    <div id="edge_dc_distance" style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Distance from '{my_closest_fard_edge_name_is}' FarEdge to EdgeDC sites:</h2>
-        <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
-    </div>
-    <table class='data-table'><tr>
-    """
-
-    # Headers for table 'Distance from '<closest FE>' FarEdge to EdgeDC sites:' 
-    headers = [
-        "Score",
-        "Region",
-        "Site",
-        "Device UUID",
-        "Status",
-        "Role",
-        "CNF",
-        "CPU Usage %",
-        "RAM free %",
-        "Disk free %",
-        "IOPS",
-        "Bandwidth (Gbps)",
-        "Manufacturer",
-        "Platform",
-        "Cluster",
-        "Location",
-        "ShortName",
-        "Type",
-        "Latitude",
-        "Longitude",
-        "Distance (km)",
-        "Latency (&microsec) | 5.0",
-        "CPU score",
-        "Mem score",
-        "Disk score",
-        "IOPS score",
-        "BW score",
-        "Latency score",
-        "Final Score"
-    ]
-    all_data_html += "".join([f"<th>{header}</th>" for header in headers])
-    all_data_html += "</tr>"
-
-    debug_modee = 0
-    if debug_modee == 1:
-        print(all_data_with_distances_edge)
-
-    # Create HTML table
-    for row in all_data_with_distances_edge:
-        # Determine row class based on closest device type
-        row_class = ""
-        if row == closest_devices.get("EdgeServer"):
-            row_class = f"style='background-color: {edge_color};'"
-        elif row == closest_devices.get("FEServer"):
-            row_class = f"style='background-color: {fe_color};'"
-
-        all_data_html += f"<tr {row_class}>" + "".join(
-            [f"<td>{format(int(item), ',') if i == 10 and isinstance(item, (int, float)) else item}</td>" for i, item in enumerate(row)]
-        ) + "</tr>"
-
-    
-    all_data_html += "</table>"
-
-    my_command = f"DELETE FROM Distance_closest_fa_to_edge_table;"
-    data = execute_sql_command(my_command)
-
-    for row in all_data_with_distances_edge:
-
-        sql_query = f"""
-        INSERT INTO Distance_closest_fa_to_edge_table
-            (
-            Score, Region, Site, Device_UUID, Status, Role, CNF, CPU, 
-            RAM_free, Disk_free, IOPS, 
-            BW, Manufacturer, Platform, Cluster, 
-            Location, ShortName, Type, Latitude, Longitude, 
-            Distance, Latency,
-            cpu_score, mem_score, disk_score, iops_score, bw_score, latency_score, final_score
-            )    
-        VALUES
-        {row};
-        """
-        
-        data = execute_sql_command(sql_query)
-
-    all_data_html += "<br>"
-    all_data_html += "<hr>"
-
-
-    # ------------------------------------------------------------------------ #
-    # Closest Devices:
-    # ------------------------------------------------------------------------ #
-    # Render the closest device data with different colors
-    my_command = f"DELETE FROM Closest_Devices;"
-    data = execute_sql_command(my_command)
-
-    closest_device_html = """
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Closest Devices:</h2>
-        <button onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">Go to Top</button>
-    </div>
-    <table class='data-table'><tr>
-    """
-
-    # Headers for 'Closest Devices:' table
-    selected_headers = [
-        "Score",
-        "Region",
-        "Site",
-        "Device UUID",
-        "Status",
-        "Role",
-        "CNF",
-        "CPU Usage %",
-        "RAM free %",
-        "Disk free %",
-        "IOPS",
-        "Bandwidth (Gbps)",
-        "Manufacturer",
-        "Platform",
-        "Cluster",
-        "Location",
-        "ShortName",
-        "Type",
-        "Latitude",
-        "Longitude",
-        "Distance (km)",
-        "Latency (&microsec)",
-        "CPU score",
-        "Mem score",
-        "Disk score",
-        "IOPS score",
-        "BW score",
-        "Latency score",
-        "Final Score"
-    ]
-    closest_device_html += "".join([f"<th>{header}</th>" for header in selected_headers])
-    closest_device_html += "</tr>"
-    
-    for device_type, color in [("FEServer", fe_color), ("EdgeServer", edge_color)]:
-        device = closest_devices[device_type]
-
-        sql_query = f"""
-        INSERT INTO Closest_Devices
-            (
-            Region, Site, Device_UUID, Status, Role, CNF, CPU, 
-            RAM_free, Disk_free, IOPS, 
-            BW, Manufacturer, Platform, Cluster, 
-            Location, ShortName, Type, Latitude, Longitude, 
-            Distance, Latency, Score,
-            cpu_score, mem_score, disk_score, iops_score, bw_score, latency_score, final_score
-            )    
-        VALUES
-        {device};
-        """
-
-        data = execute_sql_command(sql_query)
-
-        if device:
-            closest_device_html += f"<tr style='background-color: {color};'>" + "".join(
-                [f"<td>{format(int(item), ',') if i == 10 and isinstance(item, (int, float)) else item}</td>" for i, item in enumerate(device)]
-            ) + "</tr>"
-
-    
-    closest_device_html += "</table>"
-
-    closest_device_html += "<br>"
-    closest_device_html += "<hr>"
 
     debug_modee = 0    
     if debug_modee == 1:
@@ -1871,6 +1822,7 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
     if debug_modee == 1:
         print(f"all_data_html_4:{all_data_html_4}")
 
+
     all_data_html += all_data_html_1
     all_data_html += all_data_html_2
     all_data_html += all_data_html_3
@@ -1880,12 +1832,18 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
 
     # ------------------------------------------------------------------------------------------
     # Create the map with folium
-    map_html = create_map(all_data_with_distances, closest_devices,all_data_with_distances_edge)
     # ------------------------------------------------------------------------------------------
+    map_path = "html/map.html"
+    map_html = create_map(all_data_with_distances, closest_devices, all_data_with_distances_edge, my_summary_best_servers, sorted_data)
+    #print(map_html)
+    # Save the HTML content to a file
+    save_html_to_file(map_html, filename=map_path)
+
+
     html_content = f"""
     <html>
     <head>
-        <title>UOP v1.1</title>    
+        <title>UOP v1.2</title>    
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -1932,18 +1890,20 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
         </script>
 
     </head>
+
     <body>
         {position_html}
         {all_data_html}
-        {closest_device_html}
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h2 id="map_section_title">Map:</h2>
             <button onclick="window.scrollTo({{ top: 0, behavior: 'smooth' }})">Go to Top</button>
         </div>
         <div id="map" style="height: 300px; width: 100%;">{map_html}</div>
     </body>
+
     </html>
     """
+
     
     # Save the HTML content to a file
     save_html_to_file(html_content, filename=my_html_output2)
@@ -1951,61 +1911,39 @@ def render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_na
     return html_content
 
 
-def create_map(all_data_with_distances, closest_devices,all_data_with_distances_edge):
+
+def create_map(all_data_with_distances, closest_devices,all_data_with_distances_edge,my_summary_best_servers,my_sorted_data):
     """Create Map """
 
     # Create a map centered around the new center location
-    #m = folium.Map(location=my_location, zoom_start=14)
     m = folium.Map(location=my_location, zoom_start=13)
     
     
     # Add markers for all devices
     marker_cluster = MarkerCluster().add_to(m)
-    for row in all_data_with_distances:
-        try:
-            latitude_value = float(row[18])  # Correct column for Latitude
-            longitude_value = float(row[19])  # Correct column for Longitude
-            location_value = row[15]  # Column with Location information
-            short_name_value = row[16]  # Column with ShortName information
-            type_server_value = row[17] # Column with Type_2: EDGE or FEDGE
 
-            cpu_usage_value = row[7] # Column with CPU Usage
-            ram_free_value = row[8] # Column with RAM free
-            disk_free_value = row[9] # Column with Disk free 
-            iops_value = row[10] # Column with IOPS 
-            bandwith_value = row[11] # Column with Bandwidth 
-            manufacturer_value = row[12] # Column with Manufacturer
-            platform_value = row[13] # Column with Platform 
-            deployed_cnf_value = row[6] # Column with Platform 
+    for row in my_sorted_data:
 
-            debug_modee = 0
-            if debug_modee == 1:
-                print(f"CPU: {cpu_usage_value}")
-                print(f"RAM: {ram_free_value}")
-                print(f"Disk: {disk_free_value}")
-                print(f"IOPS: {iops_value}")
-                print(f"Bandwith: {bandwith_value}")
+        latitude_value = float(row[17])  # Correct column for Latitude
+        longitude_value = float(row[18])  # Correct column for Longitude
+        location_value = row[14]  # Column with Location information
+        short_name_value = row[15]  # Column with ShortName information
+        type_server_value = row[16] # Column with Type_2: EDGE or FEDGE
 
-
-            latitude = latitude_value
-            longitude = longitude_value
-            location = location_value
-            short_name = short_name_value
-            type_server = type_server_value
- 
-            # Color for sites
-            if type_server == 'EDGE':
+        latitude = latitude_value
+        longitude = longitude_value
+        location = location_value
+        short_name = short_name_value
+        type_server = type_server_value
+        
+        if type_server == 'EDGE':
 #                my_marker_color = 'red' 
-                my_marker_color = 'purple' 
-                my_marker_icon = 'cloud' 
-            else: # FEDGE
+            my_marker_color = 'purple' 
+            my_marker_icon = 'cloud' 
+        else: # FEDGE
 #                my_marker_color = '#f5cc87' # 'orange'
-                my_marker_color = 'orange'
-                my_marker_icon = 'signal' 
-
-                
-        except (ValueError, IndexError):
-            continue  # Skip rows with invalid lat/long data
+            my_marker_color = 'orange'
+            my_marker_icon = 'signal' 
 
 
         # Adding sites to map
@@ -2017,54 +1955,6 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
                 icon=folium.Icon(icon=my_marker_icon, prefix='fa', color=my_marker_color)  # Red color for other markers
             ).add_to(marker_cluster)
 
-        else:
-        
-            my_icon_file = 'images/logo.png'
-            folium.Marker(
-                location=(latitude, longitude),
-                tooltip=f"{location} ({short_name})",
-                #icon=folium.Icon(icon=my_marker_icon, prefix='fa', color=my_marker_color)  # Red color for other markers
-                icon=folium.features.CustomIcon(icon_image=my_icon_file, icon_size=(29, 37)),  # Usa ícono personalizado con nuevo tamaño
-            ).add_to(marker_cluster)
-        
-
-    for row in all_data_with_distances_edge:
-
-        try:
-            latitude_value = float(row[18])  # Correct column for Latitude
-            longitude_value = float(row[19])  # Correct column for Longitude
-            location_value = row[15]  # Column with Location information
-            short_name_value = row[16]  # Column with ShortName information
-            type_server_value = row[17] # Column with Type_2: EDGE or FEDGE
-
-            latitude = latitude_value
-            longitude = longitude_value
-            location = location_value
-            short_name = short_name_value
-            type_server = type_server_value
-            
-            if type_server == 'EDGE':
-                my_marker_color = 'red' 
-                my_marker_color = 'purple' 
-                my_marker_icon = 'cloud' 
-            else:
-#                my_marker_color = '#f5cc87' # 'orange'
-                my_marker_color = 'orange'
-                my_marker_icon = 'signal' 
-#                print("Esto es 1antena!!")
-
-                
-        except (ValueError, IndexError):
-            continue  # Skip rows with invalid lat/long data
-
-
-        if type_server == 'EDGE':
-
-            folium.Marker(
-                location=(latitude, longitude),
-                tooltip=f"{location} ({short_name})",
-                icon=folium.Icon(icon=my_marker_icon, prefix='fa', color=my_marker_color)  # Red color for other markers
-            ).add_to(marker_cluster)
 
         else:
         
@@ -2075,6 +1965,12 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
                 #icon=folium.Icon(icon=my_marker_icon, prefix='fa', color=my_marker_color)  # Red color for other markers
                 icon=folium.features.CustomIcon(icon_image=my_icon_file, icon_size=(29, 37)),  # Usa ícono personalizado con nuevo tamaño
             ).add_to(marker_cluster)
+#            marker = folium.Marker(
+#                location=(latitude, longitude),
+#                tooltip=f"{location} ({short_name})",
+#                #icon=folium.Icon(icon=my_marker_icon, prefix='fa', color=my_marker_color)  # Red color for other markers
+#                icon=folium.features.CustomIcon(icon_image=my_icon_file, icon_size=(29, 37)),  # Usa ícono personalizado con nuevo tamaño
+#            )
 
 
     # Add a marker for 'SMU Dallas Campus' location
@@ -2084,27 +1980,52 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
         icon=folium.Icon(icon='mortar-board', prefix='fa', color='blue')
     ).add_to(m)
 
+    edge_coords = (my_summary_best_servers[1]['lat'],my_summary_best_servers[1]['long'])
+    edge_distance = my_summary_best_servers[1]['distance']
+    far_edge_coords = (my_summary_best_servers[0]['lat'],my_summary_best_servers[0]['long'])
+    far_edge_distance = my_summary_best_servers[0]['distance']
 
-    edge_point = closest_devices.get("EdgeServer")
-    edge_coords = (edge_point[18],edge_point[19])
-    edge_distance = edge_point[20]
-    far_edge_point = closest_devices.get("FEServer")
-    far_edge_coords = (far_edge_point[18],far_edge_point[19])
-    far_edge_distance = far_edge_point[20]
+    smu_coords = (32.841362, -96.784582)  # SMU Dallas Campus
+    far_edge_coords = (my_summary_best_servers[0]['lat'], my_summary_best_servers[0]['long'])  # Far Edge Server
+    edge_coords = (my_summary_best_servers[1]['lat'], my_summary_best_servers[1]['long'])  # Edge Server
+    utsw_coords = (32.817195, -96.843869)  # UTSW Medical Center
 
+    def mas_al_norte(coord1, coord2):
+        if coord1[0] > coord2[0]:
+            control_point_offset = 0.5
+        elif coord1[0] < coord2[0]:
+            control_point_offset = -0.5
+        else:
+            control_point_offset = 0.5
+        return control_point_offset
 
     ####################################################################
     ## 
     ## SMU Campus < -- > Closest Far Edge 
     ## 
     ####################################################################
+
+
+    # Añadir un círculo en el mapa
+    folium.Circle(
+        location=far_edge_coords,  # Coordenadas del centro del círculo
+        radius=400,            # Radio del círculo en metros
+        color='blue',          # Color del borde del círculo
+        fill=True,             # Rellenar el círculo
+        fill_color='blue',     # Color de relleno
+        fill_opacity=0.2       # Opacidad del relleno
+    ).add_to(m)
+
+
     smu_coords = my_location    
+    my_control_point_offset = mas_al_norte(smu_coords,far_edge_coords)
     # Distances (curves) -----------------------------------------------------------------
     curve_points = get_bezier_curve_points(
         smu_coords,  # SMUD Campus
         far_edge_coords, # Far Edge
 #        control_point_offset=-0.5
-        control_point_offset=0.5
+#        control_point_offset=0.5
+        control_point_offset=my_control_point_offset
     )
 
     # Adding Bezier curve to the map
@@ -2112,9 +2033,10 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
 #        weight=55,
         curve_points[::-1], 
 #        color="purple", 
-        color="green", 
+#        color="green", 
+        color="blue", 
         weight=10,
-        opacity=0.5,
+        opacity=0.4,
         tooltip='Distance: ' + str(far_edge_distance) +'km'
         ).add_to(m)
 
@@ -2136,28 +2058,41 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
         ).add_to(m)
 
 
-
-
     ####################################################################
     ## 
     ## Closest Far Edge < -- >  Closest Edge
     ## 
     ####################################################################
+
+    # Añadir un círculo en el mapa
+    folium.Circle(
+        location=edge_coords,  # Coordenadas del centro del círculo
+        radius=400,            # Radio del círculo en metros
+        color='red',          # Color del borde del círculo
+        fill=True,             # Rellenar el círculo
+        fill_color='red',     # Color de relleno
+        fill_opacity=0.2       # Opacidad del relleno
+    ).add_to(m)
+
+
     # Distances (curves) -----------------------------------------------------------------
+    my_control_point_offset = mas_al_norte(far_edge_coords,edge_coords)
     curve_points = get_bezier_curve_points(
         far_edge_coords, # Far Edge
         edge_coords,  # Edge
 #        control_point_position=0.9, 
 #        control_point_offset=0.5
-        control_point_offset=-0.5
+#        control_point_offset=-0.5
+        control_point_offset=my_control_point_offset
     )
     # Adding Bezier curve to the map
     curve_line = folium.PolyLine(
         curve_points[::-1], 
 #        color="purple", 
-        color="green", 
+#        color="green", 
+        color="red", 
         weight=10,
-        opacity=0.5,
+        opacity=0.4,
         tooltip='Distance: ' + str(edge_distance) +'km'
         ).add_to(m)
 
@@ -2197,24 +2132,27 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
 
     ####################################################################
     ## 
-    ## Closest Far Edge < -- >  Closest Edge
+    ## Closest Edge < -- >  UTSW Medical Center Dallas
     ## 
     ####################################################################
     # Distances (curves) -----------------------------------------------------------------
+    my_control_point_offset = mas_al_norte(edge_coords,utsw_coords)
     curve_points = get_bezier_curve_points(
         edge_coords,  # Edge
         utsw_coords, # UTSW Medical Center Dallas
 #        control_point_position=0.9, 
 #        control_point_offset=0.2
-        control_point_offset=0.5
-    )
+#        control_point_offset=0.5
+         control_point_offset=my_control_point_offset
+   )
     # Adding Bezier curve to the map
     curve_line = folium.PolyLine(
         curve_points[::-1], 
 #        color="purple", 
         color="green", 
         weight=10,
-        opacity=0.5,
+        opacity=0.4,
+            
         tooltip='Distance: ' + str(distance_edge_to_utsw) +'km'
         ).add_to(m)
 
@@ -2235,7 +2173,7 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
 
     utsw_coords  = (32.817195, -96.843869) ## UTSW Medical Center Dallas // W1225536259 
     # Calculate distance
-    distance_utsw_arli = round(haversine(utsw_coords, arlington_coords), 2)
+#    distance_utsw_arli = round(haversine(utsw_coords, arlington_coords), 2)
 
 
     my_arli_info = 'Arlington National DC'
@@ -2295,6 +2233,7 @@ def set_first_row_gray(excel_file):
         print(f"Error: {e}")
 
 
+
 def set_background_white(excel_file):
     """Opens an Excel file and sets the background of all cells in the active sheet to white."""
     try:
@@ -2330,6 +2269,7 @@ def set_background_white(excel_file):
         print(f"Error: {e}")
 
 
+
 def apply_number_format(ws, col, number_format):
     """Applies a number format to a specific column."""
     for row in range(2, ws.max_row + 1):  # Start from row 2 to avoid the header
@@ -2337,9 +2277,16 @@ def apply_number_format(ws, col, number_format):
         cell.number_format = number_format
 
 
+
 # Helper function to highlight the highest scores for FEServer and EdgeServer
 def highlight_high_scores(excel_file):
     """Highlights the rows with the highest scores for FEServer and EdgeServer"""
+
+    global my_closest_fard_edge_name_is2
+    global my_closest_edge_name_is2
+    global my_closest_fard_edge_name_is3
+    global my_closest_edge_name_is3
+
     try:
         # Load the Excel file
         wb = load_workbook(excel_file)
@@ -2350,31 +2297,28 @@ def highlight_high_scores(excel_file):
         orange_fill = PatternFill(start_color="FFCC99", end_color="FFCC99", fill_type="solid")  # Light Orange
         
         # Variables to track the highest scores and their corresponding rows
-        highest_feserver_score = -float('inf')
-        highest_edgeserver_score = -float('inf')
         feserver_row = None
         edgeserver_row = None
         
         # Start from row 3 (index 3 in 1-based indexing, row 2 in 0-based)
         for row in range(3, ws.max_row + 1):
-            score = ws.cell(row=row, column=2).value  # Column B (Score)
             role = ws.cell(row=row, column=5).value  # Column E (Role)
+
+            site = ws.cell(row=row, column=3).value  # Column C (Site)
+
+            if role == 'FEServer' and site == my_closest_fard_edge_name_is3 :
+                feserver_row = row
+            elif role == 'EdgeServer'  and site == my_closest_edge_name_is3:
+                edgeserver_row = row
             
-            if score is not None:
-                if role == 'FEServer' and score > highest_feserver_score:
-                    highest_feserver_score = score
-                    feserver_row = row
-                elif role == 'EdgeServer' and score > highest_edgeserver_score:
-                    highest_edgeserver_score = score
-                    edgeserver_row = row
         
         # Highlight the rows with the highest scores for FEServer and EdgeServer
         if feserver_row:
             for cell in ws[feserver_row]:
-                cell.fill = yellow_fill
+                cell.fill = orange_fill
         if edgeserver_row:
             for cell in ws[edgeserver_row]:
-                cell.fill = orange_fill
+                cell.fill = yellow_fill
         
         # Save the modified Excel file
         highlighted_file = excel_file.replace('.xlsx', '_highlighted.xlsx')
@@ -2624,21 +2568,6 @@ async def get_export_excel_and_download():
                 if debug_modee == 1:
                     loguru.logger.debug(f"generated_file_highlighted: {generated_file_highlighted}")
 
-#        if debug_modee == 1:
-#
-#            for file_path in list_of_files:
-#    
-#                full_file_path = os.path.join(current_path, file_path)
-#    
-#                debug_modee = 0
-#                if debug_modee == 1:
-#                    loguru.logger.debug(f"Checking: '{full_file_path}'")
-#                    
-#                if os.path.exists(full_file_path):
-#                    loguru.logger.debug(f"File exists: {full_file_path}")
-#                else:
-#                    loguru.logger.debug(f"File does not exist: {full_file_path}")
-
 
         # Convert file names into downloadable URLs
         file_urls = [f"/download/{urllib.parse.quote(file)}" for file in list_of_files]
@@ -2657,7 +2586,6 @@ async def get_export_excel_and_download():
 
             for file_path in file_urls:
 
-                my_path = os.getcwd() + '/output/'
                 if os.path.exists(full_file_path):
                     loguru.logger.debug(f"File existss: {full_file_path}")
                     
@@ -2726,7 +2654,7 @@ async def get_closest_device():
         if debug_modee == 1:
             loguru.logger.debug("Radnomize.......")
             
-        all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4 = get_random_value_in_db()
+        all_data_html_1, all_data_html_2, all_data_html_3, all_data_html_4, my_summary_best_servers, my_fe_server_data, my_edge_server_data = get_random_value_in_db()
         
     debug_modee = 0
 
@@ -2743,10 +2671,7 @@ async def get_closest_device():
         "EdgeServer": None,
         "FEServer": None
     }
-    min_distances = {
-        "EdgeServer": float('inf'),
-        "FEServer": float('inf')
-    }
+
     max_score = {
         "EdgeServer": 0.0,
         "FEServer": 0.0
@@ -2754,6 +2679,8 @@ async def get_closest_device():
     all_data_with_distances_all = []
     all_data_with_distances = []
     all_data_with_distances_edge = []
+
+
 
 
     ######################################################################################################
@@ -2790,40 +2717,25 @@ async def get_closest_device():
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
-            #latency =  round((distance / 200), 4)
+#            latency =  round((distance / 200), 4)
             latency =  round((distance * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
 
             ### Latency ---------------------------------------------------------------------------
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-## partial_scores:
-## cpu_score  		= cpu_weight  		× ( 1 − [ CPU_Usage_value/cpu_div ] )  # Inverted because higher value is worse
-## ram_score  		= ram_weight  		× [ Ram_Free_value/ram_div ] 
-## disk_score 		= disk_weight 		× [ Disk_Free_value/ram_div ] 
-## iops_score 		= iops_weight 		× [ iops_value/iops_div ] 
-## bw_score         = bw_weight   		× [ bw_value/bw_div ] 
-##### distance_score   = distance_weight  	× ( 1 − [ Distance_value/distance_div ] )  # Inverted because higher value is worse
-## latency_score    = latency_weight  	× ( 1 − [ Distance_value/latency_div ] )  # Inverted because higher value is worse
-## 
-##### final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + distance_score + latency_score
-## final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + latency_score
-
             cpu_usage_value = row[6] # Column with CPU Usage
             ram_free_value = row[7] # Column with RAM free
             disk_free_value = row[8] # Column with Disk free 
             iops_value = row[9] # Column with IOPS 
             bandwith_value = row[10] # Column with Bandwidth 
-            manufacturer_value = row[11] # Column with Manufacturer
-            platform_value = row[12] # Column with Platform 
-            deployed_cnf_value = row[5] # Column with Platform 
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"Site '{row[1]}':")
      
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- CPU score:")
@@ -2836,14 +2748,14 @@ async def get_closest_device():
             cpu_score_scaled = round(1 + 9 * cpu_score,2)
             
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  cpu_score        : {cpu_score}")
                 loguru.logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
                 loguru.logger.debug("")
 
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- RAM score:")
@@ -2855,13 +2767,13 @@ async def get_closest_device():
             ram_score = ram_weight * ( ram_free_value / ram_div )
             ram_score_scaled = round(1 + 9 * ram_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  ram_score      : {ram_score}")
                 loguru.logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
                 loguru.logger.debug("")
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- Disk score:")
@@ -2873,13 +2785,13 @@ async def get_closest_device():
             disk_score = disk_weight * ( disk_free_value / disk_div )
             disk_score_scaled = round(1 + 9 * disk_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  disk_score      : {disk_score}")
                 loguru.logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
                 loguru.logger.debug("")
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- IOPS score:")
@@ -2898,13 +2810,13 @@ async def get_closest_device():
             iops_score = (iops_value - iops_min_value) / (iops_max_value - iops_min_value)  # Más IOPS es mejor
             iops_score_scaled = round(1 + 9 * iops_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  iops_score      : {iops_score}")
                 loguru.logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
                 loguru.logger.debug("")
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- Bandwith score:")
@@ -2924,7 +2836,7 @@ async def get_closest_device():
             bw_score = (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value )
             bw_score_scaled = round(1 + 9 * bw_score,2)
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  bw_score        : {bw_score}")
                 loguru.logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
@@ -2949,7 +2861,7 @@ async def get_closest_device():
                 loguru.logger.debug(f"  distance_score   : {distance_score}")
                 loguru.logger.debug("")
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- Latency score:")
@@ -2965,7 +2877,7 @@ async def get_closest_device():
             latency_score = latency_weight * ( 1 - (latency - latency_min_value) / (latency_max_value - latency_min_value) )  # A menor latency mejor
             latency_score_scaled = round(1 + 9 * latency_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  latency_score        : {latency_score}")
                 loguru.logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
@@ -2985,86 +2897,16 @@ async def get_closest_device():
             new_row = tuple(list(row) + [cpu_score_scaled] + [ram_score_scaled] + [disk_score_scaled] + [iops_score_scaled] + [bw_score_scaled] + [latency_score_scaled] + [final_score_scaled])
             new_data2.append(new_row)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"final_score = {final_score }")
                 loguru.logger.debug(f"final_score2 = {final_score2 }")
                 loguru.logger.debug(f"final_score2_scaled = {final_score_scaled }")
                 loguru.logger.debug("")
 
-## ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print("")
-##                print(f"- Bonus score:")
-##                print(f"  manufacturer_value  : {manufacturer_value}")
-##                print(f"  manufacturer_weight : {manufacturer_weight}")
-##                print(f"  Formula: if manufacturer_value='HPE' is better than 'DL'")
-##
-##            extra_manufacturer = 0
-##            if manufacturer_value == 'HPE':
-##                extra_manufacturer = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for HPE!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for manufacturer HPE!")
-##                
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"  platform_value      : {platform_value}")
-##                print(f"  platform_weight     : {platform_weight}")
-##                print(f"  Formula: if platform_value='WRCP' is better than 'RHOCP'")
-##
-##            extra_platform = 0
-##            if platform_value == 'WRCP':
-##                extra_platform = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for WRCP!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for WRCP!")
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"  deployed_cnf_value  : {deployed_cnf_value}")
-##                print(f"  deployed_cnf_weight : {deployed_cnf_weight}")
-##                print(f"  Formula: if deployed_cnf_value=1 is better than 0")
-##
-##            extra_deployed_cnf = 0
-##            if deployed_cnf_value == 1:
-##                extra_deployed_cnf = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for CNF already deployed!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for CNF already deployed!")
-##            
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"extra_bonus = ( manufacturer_weight ({manufacturer_weight}) * extra_manufacturer ({extra_manufacturer}) ) + ( platform_weight ({platform_weight}) * extra_platform ({extra_platform}) ) + ( deployed_cnf_weight ({deployed_cnf_weight}) * extra_deployed_cnf ({extra_deployed_cnf}) ) ")
-##
-##            extra_bonus = ( manufacturer_weight * extra_manufacturer ) + ( platform_weight * extra_platform ) + ( deployed_cnf_weight * extra_deployed_cnf ) 
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"> extra_bonus: {extra_bonus}")
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f">>> (before bonus) Score: {final_score}")
-##
-##            final_score = round(final_score + extra_bonus, 4)
-## ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             ffinal_score = final_score_scaled
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f">>> Final score: {ffinal_score}")
 
@@ -3137,25 +2979,15 @@ async def get_closest_device():
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
-            #latency =  round((distance / 200), 4)
+#            latency =  round((distance / 200), 4)
             latency =  round((distance * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
             
             ### Latency ---------------------------------------------------------------------------
 
             ### Score +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-## partial_scores:
-## cpu_score  		= cpu_weight  		× ( 1 − [ CPU_Usage_value/cpu_div ] )  # Inverted because higher value is worse
-## ram_score  		= ram_weight  		× [ Ram_Free_value/ram_div ] 
-## disk_score 		= disk_weight 		× [ Disk_Free_value/ram_div ] 
-## iops_score 		= iops_weight 		× [ iops_value/iops_div ] 
-## bw_score         = bw_weight   		× [ bw_value/bw_div ] 
-## distance_score   = distance_weight  	× ( 1 − [ Distance_value/distance_div ] )  # Inverted because higher value is worse
-## latency_score    = latency_weight  	× ( 1 − [ Distance_value/latency_div ] )  # Inverted because higher value is worse
-## 
-## final_score = cpu_score + ram_score + disk_score + iops_score + bw_score + distance_score + latency_score
                 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- CPU score:")
@@ -3167,13 +2999,13 @@ async def get_closest_device():
             cpu_score = cpu_weight * ( 1 - ( cpu_usage_value / cpu_div ) )
             cpu_score_scaled = round(1 + 9 * cpu_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  cpu_score        : {cpu_score}")
                 loguru.logger.debug(f"  cpu_score_scaled : {cpu_score_scaled}")
                 loguru.logger.debug("")
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- RAM score:")
@@ -3185,13 +3017,13 @@ async def get_closest_device():
             ram_score = ram_weight * ( ram_free_value / ram_div )
             ram_score_scaled = round(1 + 9 * ram_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  ram_score        : {ram_score}")
                 loguru.logger.debug(f"  ram_score_scaled : {ram_score_scaled}")
                 loguru.logger.debug("")
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"- Disk score:")
                 loguru.logger.debug(f"  disk_weight     : {disk_weight}")
@@ -3202,13 +3034,13 @@ async def get_closest_device():
             disk_score = disk_weight * ( disk_free_value / disk_div )
             disk_score_scaled = round(1 + 9 * disk_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  disk_score        : {disk_score}")
                 loguru.logger.debug(f"  disk_score_scaled : {disk_score_scaled}")
                 loguru.logger.debug("")
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- IOPS score:")
@@ -3227,13 +3059,13 @@ async def get_closest_device():
             iops_score = (iops_value - iops_min_value) / (iops_max_value - iops_min_value)  # Más IOPS es mejor
             iops_score_scaled = round(1 + 9 * iops_score,2)
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  iops_score        : {iops_score}")
                 loguru.logger.debug(f"  iops_score_scaled : {iops_score_scaled}")
                 loguru.logger.debug("")
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"- Bandwith score:")
                 loguru.logger.debug(f"  bw_weight       : {bw_weight}")
@@ -3252,7 +3084,7 @@ async def get_closest_device():
             bw_score = (bandwith_value - bw_min_value) / (bw_max_value - bw_min_value )
             bw_score_scaled = round(1 + 9 * bw_score,2)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  bw_score        : {bw_score}")
                 loguru.logger.debug(f"  bw_score_scaled : {bw_score_scaled}")
@@ -3277,7 +3109,7 @@ async def get_closest_device():
                 loguru.logger.debug(f"  distance_score   : {distance_score}")
                 loguru.logger.debug("")
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug("")
                 loguru.logger.debug(f"- Latency score:")
@@ -3297,7 +3129,7 @@ async def get_closest_device():
             new_row = tuple(list(row) + [cpu_score_scaled] + [ram_score_scaled] + [disk_score_scaled] + [iops_score_scaled] + [bw_score_scaled] + [latency_score_scaled] + [final_score_scaled])
             new_data.append(new_row)
             
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"  latency_score        : {latency_score}")
                 loguru.logger.debug(f"  latency_score_scaled : {latency_score_scaled}")
@@ -3313,7 +3145,7 @@ async def get_closest_device():
             final_score = round(final_score, 4)
             final_score2 = round(final_score, 0)
 
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f"final_score = {final_score}")
                 loguru.logger.debug(f"final_score2 = {final_score2}")
@@ -3321,77 +3153,9 @@ async def get_closest_device():
                 loguru.logger.debug("")
                 loguru.logger.debug("")
 
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print("")
-##                print(f"- Bonus score:")
-##                print(f"  manufacturer_value  : {manufacturer_value}")
-##                print(f"  manufacturer_weight : {manufacturer_weight}")
-##                print(f"  Formula: if manufacturer_value='HPE' is better than 'DL'")
-##
-##            extra_manufacturer = 0
-##            if manufacturer_value == 'HPE':
-##                extra_manufacturer = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for HPE!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for manufacturer HPE!")
-##                
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"  platform_value      : {platform_value}")
-##                print(f"  platform_weight     : {platform_weight}")
-##                print(f"  Formula: if platform_value='WRCP' is better than 'RHOCP'")
-##
-##            extra_platform = 0
-##            if platform_value == 'WRCP':
-##                extra_platform = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for WRCP!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for WRCP!")
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"  deployed_cnf_value  : {deployed_cnf_value}")
-##                print(f"  deployed_cnf_weight : {deployed_cnf_weight}")
-##                print(f"  Formula: if deployed_cnf_value=1 is better than 0")
-##
-##            extra_deployed_cnf = 0
-##            if deployed_cnf_value == 1:
-##                extra_deployed_cnf = 1
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("Extra point for CNF already deployed!")
-##            else:
-##                debug_modee = 0
-##                if debug_modee == 1:
-##                    print("__NO__ Extra point for CNF already deployed!")
-##            
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"extra_bonus = ( manufacturer_weight ({manufacturer_weight}) * extra_manufacturer ({extra_manufacturer}) ) + ( platform_weight ({platform_weight}) * extra_platform ({extra_platform}) ) + ( deployed_cnf_weight ({deployed_cnf_weight}) * extra_deployed_cnf ({extra_deployed_cnf}) ) ")
-##
-##            extra_bonus = ( manufacturer_weight * extra_manufacturer ) + ( platform_weight * extra_platform ) + ( deployed_cnf_weight * extra_deployed_cnf ) 
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f"> extra_bonus: {extra_bonus}")
-##
-##            debug_modee = 0
-##            if debug_modee == 1:
-##                print(f">>> (before bonus) Score: {final_score}")
-##
-##            final_score = round(final_score + extra_bonus, 4)
 
             ffinal_score = final_score_scaled
-            debug_modee = 1
+            debug_modee = 0
             if debug_modee == 1:
                 loguru.logger.debug(f">>> Final score: {ffinal_score}")
 
@@ -3428,7 +3192,21 @@ async def get_closest_device():
     my_closest_edge_name_is = closest_devices['EdgeServer'][14]
     
     # Render the HTML with tables and the map
-    return render_gui(all_data_with_distances, closest_devices, my_closest_fard_edge_name_is , my_closest_edge_name_is,all_data_with_distances_edge,all_data_with_distances_all,all_data_html_1, all_data_html_2,all_data_html_3, all_data_html_4)
+    return render_gui(
+        all_data_with_distances,
+        closest_devices,
+        my_closest_fard_edge_name_is,
+        my_closest_edge_name_is,
+        all_data_with_distances_edge,
+        all_data_with_distances_all,
+        all_data_html_1,
+        all_data_html_2,
+        all_data_html_3,
+        all_data_html_4,
+        my_summary_best_servers,
+        my_fe_server_data,
+        my_edge_server_data
+    )
 
 
 
