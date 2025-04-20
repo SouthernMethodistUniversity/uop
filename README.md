@@ -2,6 +2,18 @@
 UPF Optimal Placer 
 
 # Change Log:
+ - v1.3 | 20/April/2025
+
+   - New latency formulas
+      - f(lt/μs)=distance (mi)*7.9   -- fiber
+      - f(lt/μs)=distance (mi)*5.37  -- microwave
+   - Edge site: distance FarEdge to Edge + Edge to UTSW location
+
+ - UOP v1.2:
+
+   - New algorithm: +1 -1 ... all with all
+   - Weights
+
 - UOP v1.1 | 28/March/2025
   - Change logger to loguru ( no impacts )
   - Added 
