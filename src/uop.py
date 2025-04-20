@@ -1,7 +1,14 @@
 ##
-## UOP v1.2
+## UOP v1.3
 ##
 ## Change Log:
+##
+## v1.3:
+##
+## - New latency formulas
+##   f(lt/μs)=distance (mi)*7.9   -- fiber
+##   f(lt/μs)=distance (mi)*5.37  -- microwave
+## - Edge site: distance FarEdge to Edge + Edge to UTSW location
 ##
 ## v1.2:
 ##
@@ -77,7 +84,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from folium import Map, plugins
 from folium.plugins import MarkerCluster
-from haversine import haversine
+# The Haversine formula to measure the straight-line distance between two geographical points (latitude and longitude) on the surface of the Earth
+from haversine import haversine,Unit  
 import numpy as np
 from openpyxl import load_workbook, Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
@@ -98,7 +106,7 @@ app = FastAPI()
 
 ## Arguments ##################################################################
 # Define command-line arguments
-parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.2")
+parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.3")
 parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
 parser.add_argument("--port", type=int, default=8181, help="Port number")
 parser.add_argument("--reload", action="store_true", default=True, help="Enable auto-reload")
@@ -503,14 +511,18 @@ def get_random_value_in_db():
             #my_location = (32.841362, -96.784582) # SMU Dallas Campus
             
             # Calculate distance: SMU to current FarEdge
-            distance3 = round(haversine(my_location, device_location3), 2)
+            distance3 = round(haversine(my_location, device_location3, unit=Unit.MILES), 2)
 
             ### Latency ---------------------------------------------------------------------------
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
             #latency =  round((distance / 200), 4)
-            latency3 =  round((distance3 * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+            #latency3 =  round((distance3 * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            # f(lt/μs)=distance (mi)*7.9   -- fiber
+            # f(lt/μs)=distance (mi)*5.37  -- microwave
+            latency3 =  round((distance3 * 5.37), 2) 
 
             device['distance'] = distance3
             device['latency'] = latency3
@@ -760,16 +772,31 @@ def get_random_value_in_db():
             current_device_lat = device['lat']
 
             device_location2 = (current_device_lat, current_device_long)
+
+            #utsw_coords  = (32.817195, -96.843869) ## UTSW Medical Center Dallas // W1225536259
+            # Calculate distance from my current EdgeSite to UTSW Medical Center
+            distance_current_edge_site_to_utsw = round(haversine(device_location2, utsw_coords, unit=Unit.MILES), 2)
             
-            # Calculate distance
-            distance2 = round(haversine(my_closest_fard_edge_is2, device_location2), 2)
+            # Calculate distance from closes FarEdge site to my current EdgeSite
+            distance2_tmp = round(haversine(my_closest_fard_edge_is2, device_location2, unit=Unit.MILES), 2)
+
+            distance2 = round(distance_current_edge_site_to_utsw + distance2_tmp,2)
+            debug_modee = 0
+            if debug_modee == 1:
+                loguru.logger.debug(f"(A) Distance from selected FarEdge to this EdgeSite: {distance2_tmp}miles")
+                loguru.logger.debug(f"(B) Distance this EdgeSite to UTSW Medical Center  : {distance_current_edge_site_to_utsw}miles")
+                loguru.logger.debug(f"Total distnace ( A + B )  : {distance2}miles")
 
             ### Latency ---------------------------------------------------------------------------
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
             #latency =  round((distance / 200), 4)
-            latency2 =  round((distance2 * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+            #latency2 =  round((distance2 * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            # f(lt/μs)=distance (mi)*7.9   -- fiber
+            # f(lt/μs)=distance (mi)*5.37  -- microwave
+            latency2 =  round((distance2 * 7.9), 2) 
 
             device['distance'] = distance2
             device['latency'] = latency2
@@ -1058,9 +1085,9 @@ def get_random_value_in_db():
             
             match my_case: 
                 case 0: # SMU          <-> FarEdge
-                    label_for_column = "Latency (&microsec) | 3.4"
+                    label_for_column = "Latency (&microsec) | 5.37"
                 case 1: # Best FarEdge <-> Edge
-                    label_for_column = "Latency (&microsec) | 5"
+                    label_for_column = "Latency (&microsec) | 7.9"
                 case 2: # Best FarEdge/Edge
                     label_for_column = "Latency (&microsec)"
                 case 3: # Best FarEdge/Edge
@@ -1843,7 +1870,7 @@ def render_gui(
     html_content = f"""
     <html>
     <head>
-        <title>UOP v1.2</title>    
+        <title>UOP v1.3</title>    
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -2116,7 +2143,7 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
 
     # Calculate distance
     utsw_coords  = (32.817195, -96.843869) ## UTSW Medical Center Dallas // W1225536259 
-    distance_edge_to_utsw = round(haversine(edge_coords,utsw_coords), 2)
+    distance_edge_to_utsw = round(haversine(edge_coords,utsw_coords, unit=Unit.MILES), 2)
     
     my_arli_info = 'UTSW Medical Center Dallas'
     folium.Marker(
@@ -2173,7 +2200,7 @@ def create_map(all_data_with_distances, closest_devices,all_data_with_distances_
 
     utsw_coords  = (32.817195, -96.843869) ## UTSW Medical Center Dallas // W1225536259 
     # Calculate distance
-#    distance_utsw_arli = round(haversine(utsw_coords, arlington_coords), 2)
+#    distance_utsw_arli = round(haversine(utsw_coords, arlington_coords, unit=Unit.MILES), 2)
 
 
     my_arli_info = 'Arlington National DC'
@@ -2711,14 +2738,19 @@ async def get_closest_device():
             device_location = (latitude, longitude)
             
             # Calculate distance ------------------------------------------------------------------
-            distance = round(haversine(my_location, device_location), 2)
+            distance = round(haversine(my_location, device_location, unit=Unit.MILES), 2)
             
             ### Latency ---------------------------------------------------------------------------
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
 #            latency =  round((distance / 200), 4)
-            latency =  round((distance * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+            #latency =  round((distance * 3.4), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            # f(lt/μs)=distance (mi)*7.9   -- fiber
+            # f(lt/μs)=distance (mi)*5.37  -- microwave
+            latency =  round((distance * 5.37), 2) 
+
 
             ### Latency ---------------------------------------------------------------------------
 
@@ -2971,16 +3003,34 @@ async def get_closest_device():
         if value_type == 'EdgeServer':
 
             device_location = (latitude, longitude)
+
+            # Calculate distance from my current EdgeSite to UTSW Medical Center
+            distance_current_edge_site_to_utsw = round(haversine(device_location, utsw_coords, unit=Unit.MILES), 2)
+            
+            # Calculate distance from closes FarEdge site to my current EdgeSite
+            #distance2_tmp = round(haversine(my_closest_fard_edge_is2, device_location2, unit=Unit.MILES), 2)
+            distance_tmp  = round(haversine(my_closest_fard_edge_is, device_location, unit=Unit.MILES), 2)
+
+            distance = round(distance_current_edge_site_to_utsw + distance_tmp,2)
+            debug_modee = 0
+            if debug_modee == 1:
+                loguru.logger.debug(f"(A) Distance from selected FarEdge to this EdgeSite: {distance_tmp}miles")
+                loguru.logger.debug(f"(B) Distance this EdgeSite to UTSW Medical Center  : {distance_current_edge_site_to_utsw}miles")
+                loguru.logger.debug(f"Total distnace ( A + B )  : {distance}miles")
             
             # Calculate distance
-            distance = round(haversine(my_closest_fard_edge_is, device_location), 2)
+#            distance = round(haversine(my_closest_fard_edge_is, device_location, unit=Unit.MILES), 2)
 
             ### Latency ---------------------------------------------------------------------------
             ### 200,000 km/s (124,000 miles per second)
             ### latency (ms) = [ distance in miles ] / [ 124 ]
 #            latency =  round((distance / 124), 4)
 #            latency =  round((distance / 200), 4)
-            latency =  round((distance * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+            #latency =  round((distance * 5), 2) # theoretical carrier latency per kilometer is about 3.4μs for radio and 5μs for fiber
+
+            # f(lt/μs)=distance (mi)*7.9   -- fiber
+            # f(lt/μs)=distance (mi)*5.37  -- microwave
+            latency =  round((distance * 7.9), 2) 
             
             ### Latency ---------------------------------------------------------------------------
 
@@ -3224,7 +3274,7 @@ current_script = Path(__file__).stem  # This will give you filename
 # Run Uvicorn with the provided or default parameters
 if __name__ == "__main__":
 
-    current_version = '1.0'
+    current_version = '1.3'
 
     loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day",level=MY_LOG_LEVEL)
     loguru.logger.info("")
