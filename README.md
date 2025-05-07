@@ -221,7 +221,7 @@ INFO     +———————————————————————�
 INFO
 WARNING  !! Using random values !!
 WARNING
-INFO:     Will watch for changes in these directories: ['/mnt/c/Users/rodrirau/Desktop/yaseen-phase_II/test']
+INFO:     Will watch for changes in these directories: ['/mnt/c/Users/Desktop/uop/']
 INFO:     Uvicorn running on http://127.0.0.1:8181 (Press CTRL+C to quit)
 INFO:     Started reloader process [3075] using StatReload
 INFO:     Started server process [3092]
