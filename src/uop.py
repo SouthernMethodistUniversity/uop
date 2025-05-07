@@ -1,39 +1,6 @@
 ##
-## UOP v1.3
+## UOP v1.0
 ##
-## Change Log:
-##
-## v1.3:
-##
-## - New latency formulas
-##   f(lt/μs)=distance (mi)*7.9   -- fiber
-##   f(lt/μs)=distance (mi)*5.37  -- microwave
-## - Edge site: distance FarEdge to Edge + Edge to UTSW location
-##
-## v1.2:
-##
-## - New algorithm: +1 -1 ... all with all
-## - Weights
-##
-##
-## v1.1:
-## - Change logger to loguru ( no impacts )
-## - Added 
-## mem_min_value_cnf_deployed = 0.10
-## mem_max_value_cnf_deployed = 0.30
-## mem_min_value_cnf_not_deployed = 0.70
-## mem_max_value_cnf_not_deployed = 0.85
-## disk_min_value_cnf_deployed = 0.10
-## disk_max_value_cnf_deployed = 0.40
-## disk_min_value_cnf_not_deployed = 0.70
-## disk_max_value_cnf_not_deployed = 0.85
-## to allow consistent values for Mem and Disk ( similar way we do with CPU )
-## 
-## - Latency: change from miliseconds to microseconds
-## 
-## - Latency: 3.4μs for radio and 5μs for fiber
-##
-## 
 ## Installation:
 ##  
 ## 1) Virtual Environment
@@ -106,7 +73,7 @@ app = FastAPI()
 
 ## Arguments ##################################################################
 # Define command-line arguments
-parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.3")
+parser = argparse.ArgumentParser(description="UPF Optimal Placer v1.0")
 parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
 parser.add_argument("--port", type=int, default=8181, help="Port number")
 parser.add_argument("--reload", action="store_true", default=True, help="Enable auto-reload")
@@ -1870,7 +1837,7 @@ def render_gui(
     html_content = f"""
     <html>
     <head>
-        <title>UOP v1.3</title>    
+        <title>UOP v1.0</title>    
         <style>
             body {{
                 font-family: Arial, sans-serif;
@@ -3274,7 +3241,7 @@ current_script = Path(__file__).stem  # This will give you filename
 # Run Uvicorn with the provided or default parameters
 if __name__ == "__main__":
 
-    current_version = '1.3'
+    current_version = '1.0'
 
     loguru.logger.add(LOG_FILE, format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}", rotation="1 day",level=MY_LOG_LEVEL)
     loguru.logger.info("")
