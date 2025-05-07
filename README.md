@@ -1,41 +1,6 @@
 # uop
 UPF Optimal Placer 
 
-# Change Log:
- - v1.3 | 20/April/2025
-
-   - New latency formulas
-      - f(lt/μs)=distance (mi)*7.9   -- fiber
-      - f(lt/μs)=distance (mi)*5.37  -- microwave
-   - Edge site: distance FarEdge to Edge + Edge to UTSW location
-
- - UOP v1.2:
-
-   - New algorithm: +1 -1 ... all with all
-   - Weights
-
-- UOP v1.1 | 28/March/2025
-  - Change logger to loguru ( no impacts )
-  - Added 
-  mem_min_value_cnf_deployed = 0.10
-  mem_max_value_cnf_deployed = 0.30
-  mem_min_value_cnf_not_deployed = 0.70
-  mem_max_value_cnf_not_deployed = 0.85
-  disk_min_value_cnf_deployed = 0.10
-  disk_max_value_cnf_deployed = 0.40
-  disk_min_value_cnf_not_deployed = 0.70
-  disk_max_value_cnf_not_deployed = 0.85
-  to allow consistent values for Mem and Disk ( similar way we do with CPU )
-  
-  - Latency: change from miliseconds to microseconds
-  
-  - Latency: 3.4μs for radio and 5μs for fiber
-
-  **NOTE** Algorith#2 doesn't use the correct distance to FEServer ( pending to fix )
-
-- UOP v1.0 | 18/March/2025
-  Initial version 
-
 # Setup Guide
 
 ## 0) Install Python 3
