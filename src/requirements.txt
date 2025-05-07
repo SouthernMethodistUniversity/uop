@@ -1,0 +1,11 @@
+argparse
+colorlog
+folium
+loguru
+numpy
+openpyxl
+pandas
+tabulate
+fastapi
+uvicorn
+haversine
