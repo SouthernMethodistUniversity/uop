@@ -1,0 +1,45 @@
+# Simulation thresholds for network node resources
+simulation:
+  cpu:
+    deployed: { min: 70, max: 95 }
+    not_deployed: { min: 10, max: 50 }
+  memory:
+    deployed: { min: 0.10, max: 0.30 }
+    not_deployed: { min: 0.70, max: 0.85 }
+  disk:
+    deployed: { min: 0.10, max: 0.40 }
+    not_deployed: { min: 0.70, max: 0.85 }
+  performance:
+    iops: { min: 100000, max: 1500000 }
+    bw_gbps: { min: 1.00, max: 25.00 }
+
+# Weights for the original ranking algorithm
+scoring_weights:
+  latency: 0.35
+  cpu: 0.18
+  iops: 0.17
+  ram: 0.12
+  bw: 0.10
+  disk: 0.08
+
+# Latency factors (in microseconds per mile)
+latency_factors:
+  fedge_microwave: 5.37
+  edge_fiber: 7.90
+
+# Reference coordinates (SMU Dallas Campus)
+smu_reference:
+  lat: 32.841362
+  lon: -96.784582 
+  
+network_anchors:
+  smu:
+    latitude: 32.8411
+    longitude: -96.7816
+  utsw:
+    latitude: 32.7912
+    longitude: -96.8324
+
+paths:
+  map_output: "network_map.html"
+  excel_output: "excel"

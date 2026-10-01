@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_53b437e2676fc3e91833f6cd024a552b {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+        <script>
+        function setupLayerHierarchy() {
+            var overlays = document.querySelector('.leaflet-control-layers-overlays');
+            if (!overlays) {
+                setTimeout(setupLayerHierarchy, 500);
+                return;
+            }
+            function bindHierarchy(masterName) {
+                var labels = Array.from(overlays.querySelectorAll('label'));
+                var masterLabel = labels.find(l => l.textContent.includes(masterName));
+                if (!masterLabel) return;
+
+                var masterCheck = masterLabel.querySelector('input');
+                var slaves = [];
+                var startIndex = labels.indexOf(masterLabel);
+
+                for (var i = startIndex + 1; i < labels.length; i++) {
+                    var txt = labels[i].textContent.trim();
+                    # Children are identified by the hierarchy symbol '└─'
+                    if (txt.includes('└─')) {
+                        slaves.push(labels[i].querySelector('input'));
+                    } else {
+                        break;
+                    }
+                }
+
+                masterCheck.addEventListener('change', function() {
+                    var state = this.checked;
+                    slaves.forEach(s => {
+                        if (s.checked !== state) s.click();
+                    });
+                });
+            }
+            bindHierarchy('Original Algorithm');
+            bindHierarchy('C3-Pareto-TOPSIS');
+        }
+        window.onload = setupLayerHierarchy;
+        </script>
+        
+    
+            <div class="folium-map" id="map_53b437e2676fc3e91833f6cd024a552b" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_53b437e2676fc3e91833f6cd024a552b = L.map(
+                "map_53b437e2676fc3e91833f6cd024a552b",
+                {
+                    center: [32.81, -96.81],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 12,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+            L.control.scale().addTo(map_53b437e2676fc3e91833f6cd024a552b);
+
+            
+
+        
+    
+            var tile_layer_2d9eb40a02d7d8b9db558b604f00b199 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            );
+        
+    
+            tile_layer_2d9eb40a02d7d8b9db558b604f00b199.addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var marker_7e39cdeb8de26c53ba34531f94fa1a87 = L.marker(
+                [32.73821052933643, -97.11275695630508],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_cad750a27f08bbf85d05bf9a5e046fc3 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cubes", "iconColor": "white", "markerColor": "darkblue", "prefix": "fa"}
+            );
+            marker_7e39cdeb8de26c53ba34531f94fa1a87.setIcon(icon_cad750a27f08bbf85d05bf9a5e046fc3);
+        
+    
+        var popup_b904d0b2c1d22defafe09f5854726599 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_b39a11a1c5ffb4154f52efdb5027f050 = $(`<div id="html_b39a11a1c5ffb4154f52efdb5027f050" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> NDC_1_ARLI_TX<br><b>Status:</b> Active<br><b>Type:</b> CORE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_b904d0b2c1d22defafe09f5854726599.setContent(html_b39a11a1c5ffb4154f52efdb5027f050);
+            
+        
+
+        marker_7e39cdeb8de26c53ba34531f94fa1a87.bindPopup(popup_b904d0b2c1d22defafe09f5854726599)
+        ;
+
+        
+    
+    
+            marker_7e39cdeb8de26c53ba34531f94fa1a87.bindTooltip(
+                `<div>
+                     Site: NDC_1_ARLI_TX (Arlington | CORE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_3ce17e9d2f3823babcf49876fbfa7314 = L.marker(
+                [32.890918, -96.961279],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_7ab7a46db6f328bd21aab468b735735d = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_3ce17e9d2f3823babcf49876fbfa7314.setIcon(icon_7ab7a46db6f328bd21aab468b735735d);
+        
+    
+        var popup_3b0695bfb2a1835389ea4c4d4555d746 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_9e36ebd61fa4310174935e70212f7155 = $(`<div id="html_9e36ebd61fa4310174935e70212f7155" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_1_LCOL_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_3b0695bfb2a1835389ea4c4d4555d746.setContent(html_9e36ebd61fa4310174935e70212f7155);
+            
+        
+
+        marker_3ce17e9d2f3823babcf49876fbfa7314.bindPopup(popup_3b0695bfb2a1835389ea4c4d4555d746)
+        ;
+
+        
+    
+    
+            marker_3ce17e9d2f3823babcf49876fbfa7314.bindTooltip(
+                `<div>
+                     Site: EDC_1_LCOL_TX (Las Colinas | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_203e84de3169b83fa42c9484786ebff2 = L.marker(
+                [32.871456, -96.774168],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_b1559e86e48f9384c0461e210b798848 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_203e84de3169b83fa42c9484786ebff2.setIcon(icon_b1559e86e48f9384c0461e210b798848);
+        
+    
+        var popup_e9374279a948a33477eca8f48963e16e = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_36a8360674ac6ab8aa64764c73ac05b5 = $(`<div id="html_36a8360674ac6ab8aa64764c73ac05b5" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_2_NPCR_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_e9374279a948a33477eca8f48963e16e.setContent(html_36a8360674ac6ab8aa64764c73ac05b5);
+            
+        
+
+        marker_203e84de3169b83fa42c9484786ebff2.bindPopup(popup_e9374279a948a33477eca8f48963e16e)
+        ;
+
+        
+    
+    
+            marker_203e84de3169b83fa42c9484786ebff2.bindTooltip(
+                `<div>
+                     Site: EDC_2_NPCR_TX (NorthPark Center | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_ca89cca5f7d076419eaaca3496a48da4 = L.marker(
+                [32.7767, -96.797],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_ad74e134b8945359a0f3d8420a196606 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_ca89cca5f7d076419eaaca3496a48da4.setIcon(icon_ad74e134b8945359a0f3d8420a196606);
+        
+    
+        var popup_6607d470f398c7744e1d5e3c9b3b760a = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_1306a64ca77095bc73eeb499f06a6587 = $(`<div id="html_1306a64ca77095bc73eeb499f06a6587" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_3_DALL_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_6607d470f398c7744e1d5e3c9b3b760a.setContent(html_1306a64ca77095bc73eeb499f06a6587);
+            
+        
+
+        marker_ca89cca5f7d076419eaaca3496a48da4.bindPopup(popup_6607d470f398c7744e1d5e3c9b3b760a)
+        ;
+
+        
+    
+    
+            marker_ca89cca5f7d076419eaaca3496a48da4.bindTooltip(
+                `<div>
+                     Site: EDC_3_DALL_TX (Dallas | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_6199ae5f861952553aabfa77a1f07225 = L.marker(
+                [32.82014275459425, -96.7336157581806],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_a6f0ef826c6f1b8507dd9e35f112e5b3 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_6199ae5f861952553aabfa77a1f07225.setIcon(icon_a6f0ef826c6f1b8507dd9e35f112e5b3);
+        
+    
+        var popup_defe1c437063d93fceff18facf528d52 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_9b5640ce643b7d035be24b14393eaa2e = $(`<div id="html_9b5640ce643b7d035be24b14393eaa2e" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_4_TEPK_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_defe1c437063d93fceff18facf528d52.setContent(html_9b5640ce643b7d035be24b14393eaa2e);
+            
+        
+
+        marker_6199ae5f861952553aabfa77a1f07225.bindPopup(popup_defe1c437063d93fceff18facf528d52)
+        ;
+
+        
+    
+    
+            marker_6199ae5f861952553aabfa77a1f07225.bindTooltip(
+                `<div>
+                     Site: EDC_4_TEPK_TX (Tietze Park | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_c8191f28de9c5adca3b14aa376dcc697 = L.marker(
+                [32.81583036223334, -96.95010695098686],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_19545f8378506608b28cebfa1bd441e6 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_c8191f28de9c5adca3b14aa376dcc697.setIcon(icon_19545f8378506608b28cebfa1bd441e6);
+        
+    
+        var popup_777b2106635762bbf441ac7290ff1a9d = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_8595d8902c4c26bd75f9546ebb0df8cb = $(`<div id="html_8595d8902c4c26bd75f9546ebb0df8cb" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_5_IRVI_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_777b2106635762bbf441ac7290ff1a9d.setContent(html_8595d8902c4c26bd75f9546ebb0df8cb);
+            
+        
+
+        marker_c8191f28de9c5adca3b14aa376dcc697.bindPopup(popup_777b2106635762bbf441ac7290ff1a9d)
+        ;
+
+        
+    
+    
+            marker_c8191f28de9c5adca3b14aa376dcc697.bindTooltip(
+                `<div>
+                     Site: EDC_5_IRVI_TX (Irving | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_039691d1c1e69e94ba577d7e060404ad = L.marker(
+                [32.85409144, -96.79447364],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_d2692055b23dd3a323a58cf9a8914299 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_039691d1c1e69e94ba577d7e060404ad.setIcon(custom_icon_d2692055b23dd3a323a58cf9a8914299);
+        
+    
+        var popup_7f14aaab799e3c58f7b77f543f4caf00 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_38112b6c9bb688fb9305a70d4dac30fe = $(`<div id="html_38112b6c9bb688fb9305a70d4dac30fe" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_1_SKST_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_7f14aaab799e3c58f7b77f543f4caf00.setContent(html_38112b6c9bb688fb9305a70d4dac30fe);
+            
+        
+
+        marker_039691d1c1e69e94ba577d7e060404ad.bindPopup(popup_7f14aaab799e3c58f7b77f543f4caf00)
+        ;
+
+        
+    
+    
+            marker_039691d1c1e69e94ba577d7e060404ad.bindTooltip(
+                `<div>
+                     Site: CS_1_SKST_TX (Skillman Street | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_fa0c142110347169a74b86b62ab7f633 = L.marker(
+                [32.85959039, -96.75389653],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_46cdc82417609018c77234fb3f8030d7 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_fa0c142110347169a74b86b62ab7f633.setIcon(custom_icon_46cdc82417609018c77234fb3f8030d7);
+        
+    
+        var popup_34cf6f5638b78997f23661d637b7eff7 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_2f6fdcac330c9d9fac0474689ccb5dd1 = $(`<div id="html_2f6fdcac330c9d9fac0474689ccb5dd1" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_2_REPL_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_34cf6f5638b78997f23661d637b7eff7.setContent(html_2f6fdcac330c9d9fac0474689ccb5dd1);
+            
+        
+
+        marker_fa0c142110347169a74b86b62ab7f633.bindPopup(popup_34cf6f5638b78997f23661d637b7eff7)
+        ;
+
+        
+    
+    
+            marker_fa0c142110347169a74b86b62ab7f633.bindTooltip(
+                `<div>
+                     Site: CS_2_REPL_TX (Revere Place | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_7943620839f5a4d3b08200d7fbefe8f2 = L.marker(
+                [32.83055144, -96.76102099],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_91cd3cd75464180fea1cb8846062f85e = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_7943620839f5a4d3b08200d7fbefe8f2.setIcon(custom_icon_91cd3cd75464180fea1cb8846062f85e);
+        
+    
+        var popup_6d612ddeaa70ccf52afe8751e53f446f = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_7147325dc0ad3299a4dffa1c64eeff71 = $(`<div id="html_7147325dc0ad3299a4dffa1c64eeff71" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_3_WOST_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_6d612ddeaa70ccf52afe8751e53f446f.setContent(html_7147325dc0ad3299a4dffa1c64eeff71);
+            
+        
+
+        marker_7943620839f5a4d3b08200d7fbefe8f2.bindPopup(popup_6d612ddeaa70ccf52afe8751e53f446f)
+        ;
+
+        
+    
+    
+            marker_7943620839f5a4d3b08200d7fbefe8f2.bindTooltip(
+                `<div>
+                     Site: CS_3_WOST_TX (Worth Street | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_94f6abaecb3bc069dafaca02a86b096c = L.marker(
+                [32.80967683, -96.75227767],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_e65f9b50dc96b6d7b65f7ae4bfa15712 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_94f6abaecb3bc069dafaca02a86b096c.setIcon(custom_icon_e65f9b50dc96b6d7b65f7ae4bfa15712);
+        
+    
+        var popup_27f0ebbeed68b3d39d07d6dcde15baf5 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_0f11fb9c04da7def6c80ad84749e3d81 = $(`<div id="html_0f11fb9c04da7def6c80ad84749e3d81" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_4_ETAV_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_27f0ebbeed68b3d39d07d6dcde15baf5.setContent(html_0f11fb9c04da7def6c80ad84749e3d81);
+            
+        
+
+        marker_94f6abaecb3bc069dafaca02a86b096c.bindPopup(popup_27f0ebbeed68b3d39d07d6dcde15baf5)
+        ;
+
+        
+    
+    
+            marker_94f6abaecb3bc069dafaca02a86b096c.bindTooltip(
+                `<div>
+                     Site: CS_4_ETAV_TX (Eton Avenue | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_b6b6ae3afb732e46109a32a69949dec7 = L.marker(
+                [32.82930277, -96.79658922],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_71b4a10e035ecc4d9b218b3cd12a3038 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_b6b6ae3afb732e46109a32a69949dec7.setIcon(custom_icon_71b4a10e035ecc4d9b218b3cd12a3038);
+        
+    
+        var popup_03a853245645a5ce6ce2f57e18e07cad = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_34d24f74ab25f3ed7ea16f05c087b118 = $(`<div id="html_34d24f74ab25f3ed7ea16f05c087b118" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_5_REST_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_03a853245645a5ce6ce2f57e18e07cad.setContent(html_34d24f74ab25f3ed7ea16f05c087b118);
+            
+        
+
+        marker_b6b6ae3afb732e46109a32a69949dec7.bindPopup(popup_03a853245645a5ce6ce2f57e18e07cad)
+        ;
+
+        
+    
+    
+            marker_b6b6ae3afb732e46109a32a69949dec7.bindTooltip(
+                `<div>
+                     Site: CS_5_REST_TX (Redfield Street | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_ce24deaf4ecd3c5897e391f6b3fc07ce = L.marker(
+                [32.80454436, -96.83806496],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_ddf8c4af1ce7b047ac6dad19f3b6268f = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_ce24deaf4ecd3c5897e391f6b3fc07ce.setIcon(custom_icon_ddf8c4af1ce7b047ac6dad19f3b6268f);
+        
+    
+        var popup_e99c09a6a525f10d3a74d09b73334564 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_fde192f8255c05fb3fda71d38feac5cb = $(`<div id="html_fde192f8255c05fb3fda71d38feac5cb" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_6_NOFW_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_e99c09a6a525f10d3a74d09b73334564.setContent(html_fde192f8255c05fb3fda71d38feac5cb);
+            
+        
+
+        marker_ce24deaf4ecd3c5897e391f6b3fc07ce.bindPopup(popup_e99c09a6a525f10d3a74d09b73334564)
+        ;
+
+        
+    
+    
+            marker_ce24deaf4ecd3c5897e391f6b3fc07ce.bindTooltip(
+                `<div>
+                     Site: CS_6_NOFW_TX (North Stemmons Freeway | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_8ae1bc7a2085ccb0e3696184b5ca1f6b = L.marker(
+                [32.83535358, -96.8595368],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_189d7cbd41a16d94e32f343a76dde5ff = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAlCAIAAAAx2HWYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAASdEVYdFNvZnR3YXJlAEdyZWVuc2hvdF5VCAUAAAYOSURBVEhLlZZJTJVnFIZp0iZdtFvTBYuSLliw0xjDJCpwAZVRIiBTICJCW4YSY5grQwANMgtKEAQXGjUqUUQjSEIJg4ymyKAMcSKMokwqaPv0ni+XywVa+saY9/z/d89/xvfD6K+1WFpaevXqlTK2hi9fvrx582ZhYUHZWhj6PXPmTEREhDK2BvwmJSXFx8crW4s1fmtra83Nzdvb25W9ZfT391taWl65ckXZ+n7n5uZsbW0vXbok5sOHD3t6eoRvhmfPnt2+fVv43bt3ra2tJyYmxFz1W1lZ6e7u/vHjR3hra+vOnTubmprk1Wbo7e21sLB48OAB/PPnz4GBgbm5ufJK+V1cXPT09JREaB0fyMzM1L3iN8IFFJSHwsvLyx0cHMgVThkdHR3fvn0LV375spWV1cjICLy5uXn37t3j4+PwwcHB8PDwyclJ7SmFDx8+REVFtbW1wRkDfNXU1MBfv369b98+aY/ye+fOHeKdn5+Hp6enJyQkQFZWViIjIxkPiXd5eRmPEOLNysry8/MTMzs7m89APn36FBQUdPnyZbjyW1paevz4cfm9v7//1atXIYRMjl1dXfCpqaljx455e3uPjo5i0rE9e/bwP/z+/fsHDx7kY/ATJ04wqRDlNz8/n9CEU1zJ6/nz5+TIzMP5sZEWZWVlmHxy//79jx8/htNeJycnugJPTExMTU2FKL8lJSVhYWHyTR8fnxs3bkDwqNFonj59Cqd2ZmZm27ZtY1QxidrGxqavrw9eV1fHNyga/OTJk5QIovzeunXr8OHDsovJyckpKSkQjoaGhsbFxVGfFy9esDKmpqZPnjzhVVFREf2Q84WFhcQk50NCQmQDlF9OM9UvX76E19fXsyAyLh0dHQEBAe/evaNw4OzZs0ePHqVdNINjHCB9Nze369evwymOvb19S0sLXPl9//69i4tLdXW1cNpVXFwsr6anp2X+KQjrBMHjzMyMNJmK0UBMeENDg52dnQyl8gvOnz/v6+vLMMEp2Y4dOzo7O+UVo0Y1hBMyAyOcxiIL0gxAEsyo8FW/xEUpKDScBrJ7klF3d/euXbuke4AGEuCjR4/g5HHx4kUJpbGxkVRkCsGqX8DY0uWBgQFla8HMx8bGKkOLvLw8mizuBEg2lWWolG3gl5LhgnRk4ABLSXQMg5gC2shcowZicpgqse76X1rjF9A0mVBBcHAw2eFI2VqwewwMfZZdACweZRQuMPSrDwSIYNldxp5OykN0lmCZNpoBl4fr8W9+EZGMjAyCunDhAn0/ffo0JrKHUrMCKCQbL2u2Hpv6RdrxNTw8LCbC9K0WFRUV8oTFoRq6ITPAxn6JgsqKMqF+BQUFZM2mAMrNCMu1QshU2eAmFmzsF/Ui39nZWZTFy8vL1dVVtyMQ0ucJc80nDxw4IKJqgA38chpJIygUhIuDFWJI1DstuHUQLQKnOFVVVXxjfcgb+GWX0K0jR46g1qy8eroOTAseiQD9FN3Rh6FfuTTRb2aLOqinm4AqcwdzmLQMZtzQL/rAGJA7Q4oMEYhcegZAKukBvUX40WtkjB6qd1qs8cvtTbAizEgf3SdqZ2fnc+fO6QYO3eGAh4cHvhgYTB4isOiDSLZgjd9r164ZpE9DuKpJlri4RHCENLOBzIBoroCAUHeUVtn6fqksv6G/ytYDLdq7d6+xsbGJicn27dvv3bunEyYduGpZep1KrPpFcAlW/nIRUFnWib8T2Ku0tDQkeGhoKCcnh9IfOnSIaugnziox6WyQmMov3yHTmzdvwokFeUYTuL3JgOzGxsbkmAA9Iy02je8x5twaEj7axFrKYeVXWsFG8FcIYsrcUEQqq1PC9eAwjtAmNjMmJobLZXl5BRPV5+0/fpcWFxw09vFxsTG/RWs0dpDuLrW1W0FfX2/Kqd819na//vJzasopK2vLyckJo9bO/szsoq+++f4H458CgsOra+rbuwc6/xxq6xpo6ej7z39tnf0cbu8ZrK37IyQ82vhHU6Ovv4tNyjByCYy39Yyydg6394z2Ck11D0p0CYhz9v+f/wLi3IISvUJTNF4x1s5hdh6RfwPNS+UW4CiaGAAAAABJRU5ErkJggg=="});
+        marker_8ae1bc7a2085ccb0e3696184b5ca1f6b.setIcon(custom_icon_189d7cbd41a16d94e32f343a76dde5ff);
+        
+    
+        var popup_ee58bf835aa5cb697837a9cc1a27ea93 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_79f0d1a47350ae14d283c9daedc5b536 = $(`<div id="html_79f0d1a47350ae14d283c9daedc5b536" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_7_HUDR_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_ee58bf835aa5cb697837a9cc1a27ea93.setContent(html_79f0d1a47350ae14d283c9daedc5b536);
+            
+        
+
+        marker_8ae1bc7a2085ccb0e3696184b5ca1f6b.bindPopup(popup_ee58bf835aa5cb697837a9cc1a27ea93)
+        ;
+
+        
+    
+    
+            marker_8ae1bc7a2085ccb0e3696184b5ca1f6b.bindTooltip(
+                `<div>
+                     Site: CS_7_HUDR_TX (Huron Drive | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_0228563d9d6c26606229e668ff35e7b9 = L.marker(
+                [32.8038247, -96.86604635],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_bcebdc57e0aa8d39713d9dccf22fbd31 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,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"});
+        marker_0228563d9d6c26606229e668ff35e7b9.setIcon(custom_icon_bcebdc57e0aa8d39713d9dccf22fbd31);
+        
+    
+        var popup_0372d57105e74058b2f7facb2a7c7060 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_f99f8623c2ffbc27071fe2b969898c4d = $(`<div id="html_f99f8623c2ffbc27071fe2b969898c4d" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_8_QUST_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_0372d57105e74058b2f7facb2a7c7060.setContent(html_f99f8623c2ffbc27071fe2b969898c4d);
+            
+        
+
+        marker_0228563d9d6c26606229e668ff35e7b9.bindPopup(popup_0372d57105e74058b2f7facb2a7c7060)
+        ;
+
+        
+    
+    
+            marker_0228563d9d6c26606229e668ff35e7b9.bindTooltip(
+                `<div>
+                     Site: CS_8_QUST_TX (Quebec Street | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_9755b69812d9d692000564531a65a095 = L.marker(
+                [32.84509678, -96.83715269],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+        var custom_icon_2a1c055f928e8dac7d415b850f2bf404 = L.icon({"iconSize": [29, 37], "iconUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAlCAIAAAAx2HWYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAASdEVYdFNvZnR3YXJlAEdyZWVuc2hvdF5VCAUAAAYOSURBVEhLlZZJTJVnFIZp0iZdtFvTBYuSLliw0xjDJCpwAZVRIiBTICJCW4YSY5grQwANMgtKEAQXGjUqUUQjSEIJg4ymyKAMcSKMokwqaPv0ni+XywVa+saY9/z/d89/xvfD6K+1WFpaevXqlTK2hi9fvrx582ZhYUHZWhj6PXPmTEREhDK2BvwmJSXFx8crW4s1fmtra83Nzdvb25W9ZfT391taWl65ckXZ+n7n5uZsbW0vXbok5sOHD3t6eoRvhmfPnt2+fVv43bt3ra2tJyYmxFz1W1lZ6e7u/vHjR3hra+vOnTubmprk1Wbo7e21sLB48OAB/PPnz4GBgbm5ufJK+V1cXPT09JREaB0fyMzM1L3iN8IFFJSHwsvLyx0cHMgVThkdHR3fvn0LV375spWV1cjICLy5uXn37t3j4+PwwcHB8PDwyclJ7SmFDx8+REVFtbW1wRkDfNXU1MBfv369b98+aY/ye+fOHeKdn5+Hp6enJyQkQFZWViIjIxkPiXd5eRmPEOLNysry8/MTMzs7m89APn36FBQUdPnyZbjyW1paevz4cfm9v7//1atXIYRMjl1dXfCpqaljx455e3uPjo5i0rE9e/bwP/z+/fsHDx7kY/ATJ04wqRDlNz8/n9CEU1zJ6/nz5+TIzMP5sZEWZWVlmHxy//79jx8/htNeJycnugJPTExMTU2FKL8lJSVhYWHyTR8fnxs3bkDwqNFonj59Cqd2ZmZm27ZtY1QxidrGxqavrw9eV1fHNyga/OTJk5QIovzeunXr8OHDsovJyckpKSkQjoaGhsbFxVGfFy9esDKmpqZPnjzhVVFREf2Q84WFhcQk50NCQmQDlF9OM9UvX76E19fXsyAyLh0dHQEBAe/evaNw4OzZs0ePHqVdNINjHCB9Nze369evwymOvb19S0sLXPl9//69i4tLdXW1cNpVXFwsr6anp2X+KQjrBMHjzMyMNJmK0UBMeENDg52dnQyl8gvOnz/v6+vLMMEp2Y4dOzo7O+UVo0Y1hBMyAyOcxiIL0gxAEsyo8FW/xEUpKDScBrJ7klF3d/euXbuke4AGEuCjR4/g5HHx4kUJpbGxkVRkCsGqX8DY0uWBgQFla8HMx8bGKkOLvLw8mizuBEg2lWWolG3gl5LhgnRk4ABLSXQMg5gC2shcowZicpgqse76X1rjF9A0mVBBcHAw2eFI2VqwewwMfZZdACweZRQuMPSrDwSIYNldxp5OykN0lmCZNpoBl4fr8W9+EZGMjAyCunDhAn0/ffo0JrKHUrMCKCQbL2u2Hpv6RdrxNTw8LCbC9K0WFRUV8oTFoRq6ITPAxn6JgsqKMqF+BQUFZM2mAMrNCMu1QshU2eAmFmzsF/Ui39nZWZTFy8vL1dVVtyMQ0ucJc80nDxw4IKJqgA38chpJIygUhIuDFWJI1DstuHUQLQKnOFVVVXxjfcgb+GWX0K0jR46g1qy8eroOTAseiQD9FN3Rh6FfuTTRb2aLOqinm4AqcwdzmLQMZtzQL/rAGJA7Q4oMEYhcegZAKukBvUX40WtkjB6qd1qs8cvtTbAizEgf3SdqZ2fnc+fO6QYO3eGAh4cHvhgYTB4isOiDSLZgjd9r164ZpE9DuKpJlri4RHCENLOBzIBoroCAUHeUVtn6fqksv6G/ytYDLdq7d6+xsbGJicn27dvv3bunEyYduGpZep1KrPpFcAlW/nIRUFnWib8T2Ku0tDQkeGhoKCcnh9IfOnSIaugnziox6WyQmMov3yHTmzdvwokFeUYTuL3JgOzGxsbkmAA9Iy02je8x5twaEj7axFrKYeVXWsFG8FcIYsrcUEQqq1PC9eAwjtAmNjMmJobLZXl5BRPV5+0/fpcWFxw09vFxsTG/RWs0dpDuLrW1W0FfX2/Kqd819na//vJzasopK2vLyckJo9bO/szsoq+++f4H458CgsOra+rbuwc6/xxq6xpo6ej7z39tnf0cbu8ZrK37IyQ82vhHU6Ovv4tNyjByCYy39Yyydg6394z2Ck11D0p0CYhz9v+f/wLi3IISvUJTNF4x1s5hdh6RfwPNS+UW4CiaGAAAAABJRU5ErkJggg=="});
+        marker_9755b69812d9d692000564531a65a095.setIcon(custom_icon_2a1c055f928e8dac7d415b850f2bf404);
+        
+    
+        var popup_a59e8aa3eb39682c2b9438d3a0555c2e = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_67a778e19b6e9ae49555225fb6ff1bb5 = $(`<div id="html_67a778e19b6e9ae49555225fb6ff1bb5" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> CS_9_LEAV_TX<br><b>Status:</b> Active<br><b>Type:</b> FEDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_a59e8aa3eb39682c2b9438d3a0555c2e.setContent(html_67a778e19b6e9ae49555225fb6ff1bb5);
+            
+        
+
+        marker_9755b69812d9d692000564531a65a095.bindPopup(popup_a59e8aa3eb39682c2b9438d3a0555c2e)
+        ;
+
+        
+    
+    
+            marker_9755b69812d9d692000564531a65a095.bindTooltip(
+                `<div>
+                     Site: CS_9_LEAV_TX (Lemmon Avenue | FEDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_70578fcd9df02e61d1b78ad084a53084 = L.marker(
+                [32.8216, -96.7755],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_eb7e332da537576fcb00dfdc919db4b8 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_70578fcd9df02e61d1b78ad084a53084.setIcon(icon_eb7e332da537576fcb00dfdc919db4b8);
+        
+    
+        var popup_3ee04ba4e41096051f22416b2e03e6b8 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_ef1e1eaf8b45d59db027c21af0b26e73 = $(`<div id="html_ef1e1eaf8b45d59db027c21af0b26e73" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_6_MILL_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_3ee04ba4e41096051f22416b2e03e6b8.setContent(html_ef1e1eaf8b45d59db027c21af0b26e73);
+            
+        
+
+        marker_70578fcd9df02e61d1b78ad084a53084.bindPopup(popup_3ee04ba4e41096051f22416b2e03e6b8)
+        ;
+
+        
+    
+    
+            marker_70578fcd9df02e61d1b78ad084a53084.bindTooltip(
+                `<div>
+                     Site: EDC_6_MILL_TX (Miller Av | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_1c03751cb80cf30ac8f9ba18ff286a7d = L.marker(
+                [32.81379, -96.79225],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_aa436ccc924afa407a9c70e70c1e89dc = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_1c03751cb80cf30ac8f9ba18ff286a7d.setIcon(icon_aa436ccc924afa407a9c70e70c1e89dc);
+        
+    
+        var popup_dfb5d48ecd0a4632c7a3b0c55e6083d4 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_33ee9b156b46271b44ecba4a215f7c87 = $(`<div id="html_33ee9b156b46271b44ecba4a215f7c87" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_7_MKNN_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_dfb5d48ecd0a4632c7a3b0c55e6083d4.setContent(html_33ee9b156b46271b44ecba4a215f7c87);
+            
+        
+
+        marker_1c03751cb80cf30ac8f9ba18ff286a7d.bindPopup(popup_dfb5d48ecd0a4632c7a3b0c55e6083d4)
+        ;
+
+        
+    
+    
+            marker_1c03751cb80cf30ac8f9ba18ff286a7d.bindTooltip(
+                `<div>
+                     Site: EDC_7_MKNN_TX (McKinney Av | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_7885a9912cd66a2c0a23b3ed99585253 = L.marker(
+                [32.86585, -96.82195],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_8bc7628614def1795fdeb7f05e579237 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_7885a9912cd66a2c0a23b3ed99585253.setIcon(icon_8bc7628614def1795fdeb7f05e579237);
+        
+    
+        var popup_76cc75662921abbcfaa5d301bf47b3f1 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_3415633e8b2b761d2b850f113623eba2 = $(`<div id="html_3415633e8b2b761d2b850f113623eba2" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_8_INWD_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_76cc75662921abbcfaa5d301bf47b3f1.setContent(html_3415633e8b2b761d2b850f113623eba2);
+            
+        
+
+        marker_7885a9912cd66a2c0a23b3ed99585253.bindPopup(popup_76cc75662921abbcfaa5d301bf47b3f1)
+        ;
+
+        
+    
+    
+            marker_7885a9912cd66a2c0a23b3ed99585253.bindTooltip(
+                `<div>
+                     Site: EDC_8_INWD_TX (Inwood Rd | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_98dc062110aec17d22de3b93474fa82c = L.marker(
+                [32.778, -96.758],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_6a6477ec3c2314932ce19f442749960f = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_98dc062110aec17d22de3b93474fa82c.setIcon(icon_6a6477ec3c2314932ce19f442749960f);
+        
+    
+        var popup_1e2c4c25805c21c20169ccde91a24578 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_bb91e3c001b54fb827e49e41f51d584e = $(`<div id="html_bb91e3c001b54fb827e49e41f51d584e" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_9_FAPK_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_1e2c4c25805c21c20169ccde91a24578.setContent(html_bb91e3c001b54fb827e49e41f51d584e);
+            
+        
+
+        marker_98dc062110aec17d22de3b93474fa82c.bindPopup(popup_1e2c4c25805c21c20169ccde91a24578)
+        ;
+
+        
+    
+    
+            marker_98dc062110aec17d22de3b93474fa82c.bindTooltip(
+                `<div>
+                     Site: EDC_9_FAPK_TX (Fair Park | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_dbeb5896189f30a25f481f222895de63 = L.marker(
+                [32.843, -96.848],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_ddb33d8eaf4739c5d569057f7cdc2a3a = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "purple", "prefix": "fa"}
+            );
+            marker_dbeb5896189f30a25f481f222895de63.setIcon(icon_ddb33d8eaf4739c5d569057f7cdc2a3a);
+        
+    
+        var popup_f8644dd7bf0f0475ac8fceb8aa05de05 = L.popup({"maxWidth": 320});
+
+        
+            
+                var html_2aef655e352664224904c7b9b8ac500c = $(`<div id="html_2aef655e352664224904c7b9b8ac500c" style="width: 100.0%; height: 100.0%;"><b>Site ID:</b> EDC_10_LFLD_TX<br><b>Status:</b> Active<br><b>Type:</b> EDGE<br><hr style='margin: 8px 0;'><b>📊 Node Telemetry Diagnostics:</b><br>• CPU Utilization: <span style='color:#2563EB;'>N/A</span><br>• Available Memory: <span style='color:#2563EB;'>N/A</span><br>• Available Storage: <span style='color:#2563EB;'>N/A</span><br>• Disk Throughput: <span style='color:#2563EB;'>N/A IOPS</span><br>• Current Bandwidth: <span style='color:#2563EB;'>N/A</span></div>`)[0];
+                popup_f8644dd7bf0f0475ac8fceb8aa05de05.setContent(html_2aef655e352664224904c7b9b8ac500c);
+            
+        
+
+        marker_dbeb5896189f30a25f481f222895de63.bindPopup(popup_f8644dd7bf0f0475ac8fceb8aa05de05)
+        ;
+
+        
+    
+    
+            marker_dbeb5896189f30a25f481f222895de63.bindTooltip(
+                `<div>
+                     Site: EDC_10_LFLD_TX (Dallas Love Field | EDGE)<br>---------------------------<br>CPU Usage: N/A<br>RAM Free: N/A<br>Disk Free: N/A<br>IOPS Performance: N/A<br>Bandwidth Capacity: N/A
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_cf37550df4f8726f5485e37f437cbfdf = L.marker(
+                [32.841362, -96.784582],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_e3440e14ccf590cf3e63cf1ed680e781 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "mortar-board", "iconColor": "white", "markerColor": "blue", "prefix": "fa"}
+            );
+            marker_cf37550df4f8726f5485e37f437cbfdf.setIcon(icon_e3440e14ccf590cf3e63cf1ed680e781);
+        
+    
+            marker_cf37550df4f8726f5485e37f437cbfdf.bindTooltip(
+                `<div>
+                     SMU Dallas Campus
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_4ea3820e7985483808ee8c9d87b6dc0d = L.marker(
+                [32.7912, -96.8324],
+                {}
+            ).addTo(map_53b437e2676fc3e91833f6cd024a552b);
+        
+    
+            var icon_e533183806b9853db13a8001a1a873b6 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "medkit", "iconColor": "white", "markerColor": "green", "prefix": "fa"}
+            );
+            marker_4ea3820e7985483808ee8c9d87b6dc0d.setIcon(icon_e533183806b9853db13a8001a1a873b6);
+        
+    
+            marker_4ea3820e7985483808ee8c9d87b6dc0d.bindTooltip(
+                `<div>
+                     UTSW Medical Center Dallas
+                 </div>`,
+                {"sticky": true}
+            );
+        
+</script>
+</html>

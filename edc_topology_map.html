@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_42fcc26780a7717bb190da36a1958888 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_42fcc26780a7717bb190da36a1958888" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_42fcc26780a7717bb190da36a1958888 = L.map(
+                "map_42fcc26780a7717bb190da36a1958888",
+                {
+                    center: [32.82, -96.83],
+                    crs: L.CRS.EPSG3857,
+                    zoom: 11,
+                    zoomControl: true,
+                    preferCanvas: false,
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_7ae411c1b49f9f694dae4f50a891d099 = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            );
+        
+    
+            tile_layer_7ae411c1b49f9f694dae4f50a891d099.addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var marker_ed819ed0696aca5f91117ef164e65db1 = L.marker(
+                [32.890918, -96.961279],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_057037a3d4048ff36dbaed878f6e3ff3 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_ed819ed0696aca5f91117ef164e65db1.setIcon(icon_057037a3d4048ff36dbaed878f6e3ff3);
+        
+    
+        var popup_3edd626c93bd57d10303df3965917a8b = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_1cada7048f9e706ae02e8154218b0439 = $(`<div id="html_1cada7048f9e706ae02e8154218b0439" style="width: 100.0%; height: 100.0%;"><b>Las Colinas</b><br>EDC_1_LCOL_TX</div>`)[0];
+                popup_3edd626c93bd57d10303df3965917a8b.setContent(html_1cada7048f9e706ae02e8154218b0439);
+            
+        
+
+        marker_ed819ed0696aca5f91117ef164e65db1.bindPopup(popup_3edd626c93bd57d10303df3965917a8b)
+        ;
+
+        
+    
+    
+            marker_ed819ed0696aca5f91117ef164e65db1.bindTooltip(
+                `<div>
+                     Las Colinas
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_e8af854bce3e4de278e2c7e2680053bd = L.marker(
+                [32.871456, -96.774168],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_b68928275395da23766160f597be8a5c = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_e8af854bce3e4de278e2c7e2680053bd.setIcon(icon_b68928275395da23766160f597be8a5c);
+        
+    
+        var popup_af685e8723332aa668958297cf56824e = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_098d2484a30620fd37ed00c13b383661 = $(`<div id="html_098d2484a30620fd37ed00c13b383661" style="width: 100.0%; height: 100.0%;"><b>NorthPark Center</b><br>EDC_2_NPCR_TX</div>`)[0];
+                popup_af685e8723332aa668958297cf56824e.setContent(html_098d2484a30620fd37ed00c13b383661);
+            
+        
+
+        marker_e8af854bce3e4de278e2c7e2680053bd.bindPopup(popup_af685e8723332aa668958297cf56824e)
+        ;
+
+        
+    
+    
+            marker_e8af854bce3e4de278e2c7e2680053bd.bindTooltip(
+                `<div>
+                     NorthPark Center
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_2f52055e515f1a1023b18aa61b2023b1 = L.marker(
+                [32.7767, -96.797],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_6e6a85f5bb0aff85b886f232f00c5e16 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_2f52055e515f1a1023b18aa61b2023b1.setIcon(icon_6e6a85f5bb0aff85b886f232f00c5e16);
+        
+    
+        var popup_8d753c0375d90f2ba94b141376d3fb06 = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_c8b0192f3bdc0eb7166a1dd421dbf520 = $(`<div id="html_c8b0192f3bdc0eb7166a1dd421dbf520" style="width: 100.0%; height: 100.0%;"><b>Dallas</b><br>EDC_3_DALL_TX</div>`)[0];
+                popup_8d753c0375d90f2ba94b141376d3fb06.setContent(html_c8b0192f3bdc0eb7166a1dd421dbf520);
+            
+        
+
+        marker_2f52055e515f1a1023b18aa61b2023b1.bindPopup(popup_8d753c0375d90f2ba94b141376d3fb06)
+        ;
+
+        
+    
+    
+            marker_2f52055e515f1a1023b18aa61b2023b1.bindTooltip(
+                `<div>
+                     Dallas
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_64e78c3ba5821134f00b120ab1336a9d = L.marker(
+                [32.82014275, -96.73361576],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_d324d2ac9951af364ed92499c32403c5 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_64e78c3ba5821134f00b120ab1336a9d.setIcon(icon_d324d2ac9951af364ed92499c32403c5);
+        
+    
+        var popup_3055f95478afa12b1b3bbcd0c7f45f3d = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_e5426ca2ad89c20f0fc2de5f52c20fe1 = $(`<div id="html_e5426ca2ad89c20f0fc2de5f52c20fe1" style="width: 100.0%; height: 100.0%;"><b>Tietze Park</b><br>EDC_4_TEPK_TX</div>`)[0];
+                popup_3055f95478afa12b1b3bbcd0c7f45f3d.setContent(html_e5426ca2ad89c20f0fc2de5f52c20fe1);
+            
+        
+
+        marker_64e78c3ba5821134f00b120ab1336a9d.bindPopup(popup_3055f95478afa12b1b3bbcd0c7f45f3d)
+        ;
+
+        
+    
+    
+            marker_64e78c3ba5821134f00b120ab1336a9d.bindTooltip(
+                `<div>
+                     Tietze Park
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_6117a764db06c18bf858eb556653ae27 = L.marker(
+                [32.81583036, -96.95010695],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_6baaca2acade002748f7b5b206a3042f = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_6117a764db06c18bf858eb556653ae27.setIcon(icon_6baaca2acade002748f7b5b206a3042f);
+        
+    
+        var popup_6ea792793bf3acdf0437b77cd7ae23d6 = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_57f3b9155c153f37545b708e43b425a9 = $(`<div id="html_57f3b9155c153f37545b708e43b425a9" style="width: 100.0%; height: 100.0%;"><b>Irving</b><br>EDC_5_IRVI_TX</div>`)[0];
+                popup_6ea792793bf3acdf0437b77cd7ae23d6.setContent(html_57f3b9155c153f37545b708e43b425a9);
+            
+        
+
+        marker_6117a764db06c18bf858eb556653ae27.bindPopup(popup_6ea792793bf3acdf0437b77cd7ae23d6)
+        ;
+
+        
+    
+    
+            marker_6117a764db06c18bf858eb556653ae27.bindTooltip(
+                `<div>
+                     Irving
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_9eb6d07e668bea9b8c2703394ebb2623 = L.marker(
+                [32.778, -96.758],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_89df93b54c35ef3a857aedb6c285914d = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_9eb6d07e668bea9b8c2703394ebb2623.setIcon(icon_89df93b54c35ef3a857aedb6c285914d);
+        
+    
+        var popup_81d4336ff7d3dcea5f24675e1195f68d = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_846a22a4b5b8be9ff26f17b4f7f4b80d = $(`<div id="html_846a22a4b5b8be9ff26f17b4f7f4b80d" style="width: 100.0%; height: 100.0%;"><b>Fair Park</b><br>EDC_6_FAPK_TX</div>`)[0];
+                popup_81d4336ff7d3dcea5f24675e1195f68d.setContent(html_846a22a4b5b8be9ff26f17b4f7f4b80d);
+            
+        
+
+        marker_9eb6d07e668bea9b8c2703394ebb2623.bindPopup(popup_81d4336ff7d3dcea5f24675e1195f68d)
+        ;
+
+        
+    
+    
+            marker_9eb6d07e668bea9b8c2703394ebb2623.bindTooltip(
+                `<div>
+                     Fair Park
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_f5b2e20a0b3b76ea1f07541d4eeb6890 = L.marker(
+                [32.723, -96.824],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_8bff11680e5bab6329f168608601c47f = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_f5b2e20a0b3b76ea1f07541d4eeb6890.setIcon(icon_8bff11680e5bab6329f168608601c47f);
+        
+    
+        var popup_d206d35b55117c453b5440a93d52b156 = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_4467200a14f8df7b4e78aad264f5af9d = $(`<div id="html_4467200a14f8df7b4e78aad264f5af9d" style="width: 100.0%; height: 100.0%;"><b>Oak Cliff / Kiest</b><br>EDC_7_OAKC_TX</div>`)[0];
+                popup_d206d35b55117c453b5440a93d52b156.setContent(html_4467200a14f8df7b4e78aad264f5af9d);
+            
+        
+
+        marker_f5b2e20a0b3b76ea1f07541d4eeb6890.bindPopup(popup_d206d35b55117c453b5440a93d52b156)
+        ;
+
+        
+    
+    
+            marker_f5b2e20a0b3b76ea1f07541d4eeb6890.bindTooltip(
+                `<div>
+                     Oak Cliff / Kiest
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_8f3f3157afb6e9275b2744bebdcbffbf = L.marker(
+                [32.843, -96.848],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_3945251ff290666e3df810805b373ebd = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_8f3f3157afb6e9275b2744bebdcbffbf.setIcon(icon_3945251ff290666e3df810805b373ebd);
+        
+    
+        var popup_147e615efd13f2b81bb194e8b7cc9d17 = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_3cdb5595c4826d5a22c7ccca22b137b6 = $(`<div id="html_3cdb5595c4826d5a22c7ccca22b137b6" style="width: 100.0%; height: 100.0%;"><b>Dallas Love Field</b><br>EDC_8_LFLD_TX</div>`)[0];
+                popup_147e615efd13f2b81bb194e8b7cc9d17.setContent(html_3cdb5595c4826d5a22c7ccca22b137b6);
+            
+        
+
+        marker_8f3f3157afb6e9275b2744bebdcbffbf.bindPopup(popup_147e615efd13f2b81bb194e8b7cc9d17)
+        ;
+
+        
+    
+    
+            marker_8f3f3157afb6e9275b2744bebdcbffbf.bindTooltip(
+                `<div>
+                     Dallas Love Field
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_a9099c10d9eaa83226a68b056812613d = L.marker(
+                [32.831, -96.715],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_7769cb67081b9b9f314f8f9b11ecb7c5 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_a9099c10d9eaa83226a68b056812613d.setIcon(icon_7769cb67081b9b9f314f8f9b11ecb7c5);
+        
+    
+        var popup_e2a28a3374f8705e32d18090a1a867ec = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_b864c42c0045c4fcfc0c2d96f618c6a3 = $(`<div id="html_b864c42c0045c4fcfc0c2d96f618c6a3" style="width: 100.0%; height: 100.0%;"><b>White Rock Lake</b><br>EDC_9_WHRO_TX</div>`)[0];
+                popup_e2a28a3374f8705e32d18090a1a867ec.setContent(html_b864c42c0045c4fcfc0c2d96f618c6a3);
+            
+        
+
+        marker_a9099c10d9eaa83226a68b056812613d.bindPopup(popup_e2a28a3374f8705e32d18090a1a867ec)
+        ;
+
+        
+    
+    
+            marker_a9099c10d9eaa83226a68b056812613d.bindTooltip(
+                `<div>
+                     White Rock Lake
+                 </div>`,
+                {"sticky": true}
+            );
+        
+    
+            var marker_3f861bc2e55260b226d283a9fa18add5 = L.marker(
+                [32.924, -96.876],
+                {}
+            ).addTo(map_42fcc26780a7717bb190da36a1958888);
+        
+    
+            var icon_6612672b964a18244f792b78c9a80d51 = L.AwesomeMarkers.icon(
+                {"extraClasses": "fa-rotate-0", "icon": "cloud", "iconColor": "white", "markerColor": "blue", "prefix": "glyphicon"}
+            );
+            marker_3f861bc2e55260b226d283a9fa18add5.setIcon(icon_6612672b964a18244f792b78c9a80d51);
+        
+    
+        var popup_c7cc74418f848b8403cb7c49b3f9b40e = L.popup({"maxWidth": "100%"});
+
+        
+            
+                var html_cfc09dec3c8f8862d8cba213750300eb = $(`<div id="html_cfc09dec3c8f8862d8cba213750300eb" style="width: 100.0%; height: 100.0%;"><b>Farmers Branch</b><br>EDC_10_FBRN_TX</div>`)[0];
+                popup_c7cc74418f848b8403cb7c49b3f9b40e.setContent(html_cfc09dec3c8f8862d8cba213750300eb);
+            
+        
+
+        marker_3f861bc2e55260b226d283a9fa18add5.bindPopup(popup_c7cc74418f848b8403cb7c49b3f9b40e)
+        ;
+
+        
+    
+    
+            marker_3f861bc2e55260b226d283a9fa18add5.bindTooltip(
+                `<div>
+                     Farmers Branch
+                 </div>`,
+                {"sticky": true}
+            );
+        
+</script>
+</html>
